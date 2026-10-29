@@ -5,7 +5,6 @@ class PresidiumItem {
     required this.curiaId,
     required this.curiaName,
     required this.name,
-    required this.sessionNumber,
     required this.parishId,
     required this.parishName,
   });
@@ -16,7 +15,6 @@ class PresidiumItem {
       curiaId: json['curiaId'] as int,
       curiaName: json['curiaName'] as String,
       name: json['name'] as String,
-      sessionNumber: json['sessionNumber'] as int? ?? 1,
       parishId: json['parishId'] as int,
       parishName: json['parishName'] as String? ?? '',
     );
@@ -26,7 +24,6 @@ class PresidiumItem {
   final int curiaId;
   final String curiaName;
   final String name;
-  final int sessionNumber;
   final int parishId;
   final String parishName;
 

@@ -16,6 +16,7 @@ class PrayersPage extends StatefulWidget {
 class _PrayersPageState extends State<PrayersPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late Future<List<PrayerCategory>> _categories;
   String? _expandedPrayerId;
   int _lastTabIndex = 0;
 
@@ -23,11 +24,14 @@ class _PrayersPageState extends State<PrayersPage>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: PrayersData.categories.length,
+      length: PrayersData.tabs.length,
       vsync: this,
     );
     _tabController.addListener(_onTabChanged);
+    _categories = PrayersData.load();
   }
+
+  void _retry() => setState(() => _categories = PrayersData.load());
 
   void _onTabChanged() {
     if (_tabController.index == _lastTabIndex) return;
@@ -74,22 +78,33 @@ class _PrayersPageState extends State<PrayersPage>
               ),
               dividerColor: AppColors.shadow.withValues(alpha: 0.08),
               tabs: [
-                for (final category in PrayersData.categories)
-                  Tab(text: category.title),
+                for (final tab in PrayersData.tabs) Tab(text: tab.title),
               ],
             ),
           ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                for (final category in PrayersData.categories)
-                  _PrayerList(
-                    category: category,
-                    expandedPrayerId: _expandedPrayerId,
-                    onPrayerTap: _onPrayerTap,
-                  ),
-              ],
+            child: FutureBuilder<List<PrayerCategory>>(
+              future: _categories,
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return _LoadError(onRetry: _retry);
+                }
+                final categories = snapshot.data;
+                if (categories == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    for (final category in categories)
+                      _PrayerList(
+                        category: category,
+                        expandedPrayerId: _expandedPrayerId,
+                        onPrayerTap: _onPrayerTap,
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -111,28 +126,81 @@ class _PrayerList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final prayers = category.prayers;
+    if (prayers.isEmpty) {
+      return _Message(
+        icon: Icons.menu_book_outlined,
+        text: '${category.title}는 준비 중이에요.',
+      );
+    }
+
+    // 한 편뿐인 탭(고해성사, 십자가의 길)은 펼친 채로 보여 준다.
+    final single = prayers.length == 1;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        if (category.id != 'legion')
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              '가톨릭 기도서·매일미사 주요 전례를 참고하였습니다.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.subtitle.withValues(alpha: 0.7),
-                    height: 1.4,
-                  ),
-            ),
-          ),
-        for (var i = 0; i < category.prayers.length; i++)
+        for (final prayer in prayers)
           PrayerExpandableTile(
-            prayer: category.prayers[i],
-            isExpanded: expandedPrayerId == category.prayers[i].id,
-            onTap: () => onPrayerTap(category.prayers[i].id),
-            showOrder: category.id == 'stations' ? i + 1 : null,
+            prayer: prayer,
+            isExpanded: single || expandedPrayerId == prayer.id,
+            onTap: single ? null : () => onPrayerTap(prayer.id),
           ),
       ],
+    );
+  }
+}
+
+class _LoadError extends StatelessWidget {
+  const _LoadError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Message(
+      icon: Icons.error_outline,
+      text: '기도문을 불러오지 못했어요.',
+      action: OutlinedButton.icon(
+        onPressed: onRetry,
+        icon: const Icon(Icons.refresh),
+        label: const Text('다시 시도'),
+      ),
+    );
+  }
+}
+
+class _Message extends StatelessWidget {
+  const _Message({required this.icon, required this.text, this.action});
+
+  final IconData icon;
+  final String text;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 48, color: AppColors.accent.withValues(alpha: 0.35)),
+            const SizedBox(height: 12),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.subtitle,
+                    height: 1.5,
+                  ),
+            ),
+            if (action != null) ...[
+              const SizedBox(height: 16),
+              action!,
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

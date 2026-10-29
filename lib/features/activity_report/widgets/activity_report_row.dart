@@ -36,7 +36,7 @@ class ActivityReportRow extends StatelessWidget {
             icon: Icon(
               entry.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
               color: entry.isFavorite
-                  ? const Color(0xFFE8B923)
+                  ? AppColors.gold
                   : AppColors.subtitle.withValues(alpha: 0.45),
             ),
             tooltip: entry.isFavorite ? '즐겨찾기 해제' : '즐겨찾기',

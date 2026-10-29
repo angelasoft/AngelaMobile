@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../notifications/notification_service.dart';
+import '../notifications/notifications_page.dart';
+import 'governance/presidium_settings_page.dart';
+import 'home/presidium_home.dart';
 import 'models/presidium_info.dart';
 import 'presidium_join_page.dart';
 import 'presidium_service.dart';
@@ -15,8 +19,10 @@ class PresidiumPage extends StatefulWidget {
 
 class _PresidiumPageState extends State<PresidiumPage> {
   final _service = const PresidiumService();
+  final _notificationService = const NotificationService();
   PresidiumInfo? _presidium;
   bool _isLoading = true;
+  int _unreadCount = 0;
 
   @override
   void initState() {
@@ -36,6 +42,17 @@ class _PresidiumPageState extends State<PresidiumPage> {
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
+    await _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final count = await _notificationService.fetchUnreadCount();
+      if (!mounted) return;
+      setState(() => _unreadCount = count);
+    } catch (_) {
+      // 배지 갱신 실패는 화면 사용을 막지 않는다.
+    }
   }
 
   Future<void> _onJoinTap() async {
@@ -46,6 +63,14 @@ class _PresidiumPageState extends State<PresidiumPage> {
     setState(() => _presidium = joined);
   }
 
+  Future<void> _onNotificationsTap() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const NotificationsPage()),
+    );
+    // 신청 승인·간부 임명 결과로 내 등급이 바뀌었을 수 있다.
+    await _loadMyPresidium();
+  }
+
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -53,13 +78,21 @@ class _PresidiumPageState extends State<PresidiumPage> {
     if (_presidium == null) {
       return _EmptyPresidiumBody(onJoinTap: _onJoinTap);
     }
-    return _JoinedPresidiumBody(presidium: _presidium!);
+    return PresidiumHome(presidium: _presidium!);
   }
 
-  void _onSettingsTap() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('쁘레시디움 설정 (구현 예정)')),
+  Future<void> _onSettingsTap() async {
+    final presidium = _presidium;
+    if (presidium == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('쁘레시디움에 가입하면 설정을 사용할 수 있어요.')),
+      );
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => PresidiumSettingsPage(presidium: presidium)),
     );
+    await _loadMyPresidium();
   }
 
   @override
@@ -72,6 +105,8 @@ class _PresidiumPageState extends State<PresidiumPage> {
           PresidiumHeader(
             presidium: _presidium,
             onSettingsTap: _onSettingsTap,
+            onNotificationsTap: _onNotificationsTap,
+            unreadCount: _unreadCount,
           ),
           Expanded(child: _buildBody()),
         ],
@@ -141,24 +176,6 @@ class _EmptyPresidiumBody extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _JoinedPresidiumBody extends StatelessWidget {
-  const _JoinedPresidiumBody({required this.presidium});
-
-  final PresidiumInfo presidium;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        '${presidium.name} 콘텐츠 (구현 예정)',
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.subtitle,
-            ),
       ),
     );
   }

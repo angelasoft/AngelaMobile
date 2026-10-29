@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../text_scale/text_scale_buttons.dart';
 import '../theme/app_colors.dart';
 
+/// 탭 상단 제목 + 글자 크기 버튼.
 class AppTabHeader extends StatelessWidget {
   const AppTabHeader({super.key, required this.title});
 
@@ -11,7 +13,7 @@ class AppTabHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 8, 4, 8),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -20,12 +22,21 @@ class AppTabHeader extends StatelessWidget {
           ),
         ),
       ),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColors.title,
-              fontWeight: FontWeight.w700,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppColors.title,
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
+          ),
+          const TextScaleButtons(),
+        ],
       ),
     );
   }

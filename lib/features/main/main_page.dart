@@ -49,17 +49,21 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+      body: SafeArea(
+        bottom: false,
+        child: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
+          FocusManager.instance.primaryFocus?.unfocus();
           setState(() => _currentIndex = index);
         },
         backgroundColor: Colors.white,
-        indicatorColor: AppColors.accent.withValues(alpha: 0.12),
+        indicatorColor: AppColors.accentLight.withValues(alpha: 0.3),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: [
           for (final tab in _tabs)

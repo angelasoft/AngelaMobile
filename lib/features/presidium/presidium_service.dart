@@ -119,17 +119,16 @@ class PresidiumService {
     throw PresidiumServiceException(message);
   }
 
-  Future<PresidiumItem> createPresidium({
+  /// 쁘레시디움을 만들고, 만든 사람이 단장으로 가입된 정보를 돌려준다.
+  Future<PresidiumInfo> createPresidium({
     required int parishId,
     int? curiaId,
     String? curiaName,
     required String name,
-    int sessionNumber = 1,
   }) async {
     final body = <String, dynamic>{
       'parishId': parishId,
       'name': name,
-      'sessionNumber': sessionNumber,
     };
     if (curiaId != null) body['curiaId'] = curiaId;
     if (curiaName != null && curiaName.trim().isNotEmpty) {
@@ -143,7 +142,7 @@ class PresidiumService {
     );
 
     if (response.statusCode == 201) {
-      return PresidiumItem.fromJson(
+      return PresidiumInfo.fromMyPresidiumJson(
         jsonDecode(response.body) as Map<String, dynamic>,
       );
     }

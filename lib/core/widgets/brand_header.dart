@@ -9,7 +9,7 @@ class BrandHeader extends StatelessWidget {
   /// 로그인 등에서 로고를 조금 작게 표시할 때 true.
   final bool compact;
 
-  static const _imagePath = 'assets/images/mary_splash.png';
+  static const _imagePath = 'assets/icons/app_icon.png';
 
   @override
   Widget build(BuildContext context) {
@@ -32,31 +32,25 @@ class _MaryIllustration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context).shortestSide;
-    final ratio = compact ? 0.32 : 0.48;
-    final minSize = compact ? 120.0 : 200.0;
-    final maxSize = compact ? 160.0 : 280.0;
-    final diameter = (size * ratio).clamp(minSize, maxSize);
+    final ratio = compact ? 0.38 : 0.6;
+    final minSize = compact ? 140.0 : 220.0;
+    final maxSize = compact ? 180.0 : 320.0;
+    final extent = (size * ratio).clamp(minSize, maxSize);
 
+    // 아이콘 그림은 투명 배경이라 자르지 않고 그대로 보여주고, 뒤에 크림색 빛을 은은하게 깐다.
     return Container(
-      width: diameter,
-      height: diameter,
-      decoration: BoxDecoration(
+      width: extent,
+      height: extent,
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: 0.85),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.12),
-            blurRadius: compact ? 20 : 32,
-            offset: Offset(0, compact ? 8 : 12),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(compact ? 12 : 16),
-      child: ClipOval(
-        child: Image.asset(
-          BrandHeader._imagePath,
-          fit: BoxFit.cover,
+        gradient: RadialGradient(
+          colors: [AppColors.backgroundCream, Color(0x00FEF6E9)],
+          stops: [0.45, 1],
         ),
+      ),
+      child: Image.asset(
+        BrandHeader._imagePath,
+        fit: BoxFit.contain,
       ),
     );
   }

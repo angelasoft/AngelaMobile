@@ -79,7 +79,8 @@ class _PresidiumJoinPageState extends State<PresidiumJoinPage> {
         _isSearching = false;
         _errorMessage = e.message;
       });
-    } catch (_) {
+    } catch (e, stackTrace) {
+      debugPrint('[ParishSearch] 검색 실패 query=$query error=$e\n$stackTrace');
       if (!mounted) return;
       setState(() {
         _searchResults = const [];
@@ -477,13 +478,6 @@ class _PresidiumListTile extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-              Text(
-                '${item.sessionNumber}차',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.w600,
-                    ),
               ),
             ],
           ),

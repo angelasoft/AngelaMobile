@@ -6,7 +6,7 @@ import '../models/parish_summary.dart';
 import '../models/presidium_info.dart';
 import '../presidium_service.dart';
 
-/// Pr 만들기 바텀시트. 생성 성공 시 해당 Pr에 자동 가입한 [PresidiumInfo]를 반환한다.
+/// Pr 만들기 바텀시트. 생성 성공 시 만든 사람이 단장으로 가입된 [PresidiumInfo]를 반환한다.
 Future<PresidiumInfo?> showCreatePresidiumSheet({
   required BuildContext context,
   required ParishSummary parish,
@@ -16,6 +16,7 @@ Future<PresidiumInfo?> showCreatePresidiumSheet({
   return showModalBottomSheet<PresidiumInfo?>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (context) => _CreatePresidiumSheet(
       parish: parish,
@@ -43,7 +44,6 @@ class _CreatePresidiumSheet extends StatefulWidget {
 class _CreatePresidiumSheetState extends State<_CreatePresidiumSheet> {
   final _nameController = TextEditingController();
   final _newCuriaController = TextEditingController();
-  final _sessionController = TextEditingController(text: '1');
 
   int? _selectedCuriaId;
   bool _useNewCuria = false;
@@ -62,7 +62,6 @@ class _CreatePresidiumSheetState extends State<_CreatePresidiumSheet> {
   void dispose() {
     _nameController.dispose();
     _newCuriaController.dispose();
-    _sessionController.dispose();
     super.dispose();
   }
 
@@ -83,18 +82,14 @@ class _CreatePresidiumSheetState extends State<_CreatePresidiumSheet> {
       return;
     }
 
-    final session = int.tryParse(_sessionController.text.trim()) ?? 1;
-
     setState(() => _isSubmitting = true);
     try {
-      final created = await widget.service.createPresidium(
+      final joined = await widget.service.createPresidium(
         parishId: widget.parish.id,
         curiaId: _useNewCuria ? null : _selectedCuriaId,
         curiaName: _useNewCuria ? _newCuriaController.text.trim() : null,
         name: name,
-        sessionNumber: session < 1 ? 1 : session,
       );
-      final joined = await widget.service.joinPresidium(created.id);
       if (!mounted) return;
       Navigator.of(context).pop(joined);
     } on PresidiumServiceException catch (e) {
@@ -125,8 +120,10 @@ class _CreatePresidiumSheetState extends State<_CreatePresidiumSheet> {
         ),
         child: SafeArea(
           top: false,
-          child: Padding(
+          // 키보드가 올라와 높이가 부족해도 잘리지 않고 스크롤되도록 한다.
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -212,37 +209,6 @@ class _CreatePresidiumSheetState extends State<_CreatePresidiumSheet> {
                 TextField(
                   controller: _nameController,
                   decoration: _fieldDecoration('예: 즐거움의 샘'),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '회합 회차',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: AppColors.title,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '주 회합이 몇 회차인지 입력합니다.\n'
-                  '가입 후 쁘레시디움 헤더에 「532차」처럼 표시됩니다.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.subtitle,
-                        height: 1.4,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _sessionController,
-                  keyboardType: TextInputType.number,
-                  decoration: _fieldDecoration('회합 회차').copyWith(
-                    labelText: '회합 회차',
-                    hintText: '예: 1 (새 Pr) / 532 (운영 중인 Pr)',
-                    helperText: '새로 만드는 Pr는 1, 이미 회합 중이면 현재 회차',
-                    helperStyle: TextStyle(
-                      color: AppColors.subtitle.withValues(alpha: 0.8),
-                      fontSize: 12,
-                    ),
-                  ),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
