@@ -66,6 +66,10 @@ class AuthService {
     if (oauthError != null && oauthError.isNotEmpty) {
       final description = uri.queryParameters['error_description'];
       debugPrint('[OAuth callback error] $oauthError ${description ?? ""}');
+      // 다른 소셜 계정으로 가입된 이메일: 서버가 보낸 안내 문구를 그대로 보여 준다.
+      if (oauthError == 'provider_mismatch' && description != null && description.isNotEmpty) {
+        throw AuthException(description);
+      }
       throw AuthException(
         '소셜 인증에 실패했습니다.\n'
         'error: $oauthError\n'
