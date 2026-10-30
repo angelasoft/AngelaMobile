@@ -60,7 +60,7 @@ void main() {
       'stations': 1,
     });
     expect(categories.first.prayers.map((p) => p.title).take(3),
-        ['1. 시작 기도', '묵주기도(로사리오)', '2. 레지오의 까떼나']);
+        ['시작 기도', '묵주기도(로사리오)', '레지오의 까떼나']);
     final stations = categories.last.prayers.single.blocks.whereType<PrayerHeading>();
     expect(stations, hasLength(14));
   });

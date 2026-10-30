@@ -56,7 +56,7 @@ class AngelaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '레지오마리애 활동수첩',
+      title: '레지오마리애',
       debugShowCheckedModeBanner: false,
       theme: _whiteTheme,
       // 날짜·시간 선택기 등 기본 위젯 문구를 한국어로 표시한다.
