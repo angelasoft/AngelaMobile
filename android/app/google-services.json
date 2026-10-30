@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "161440045251",
+    "project_id": "angelamobile",
+    "storage_bucket": "angelamobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:161440045251:android:1bb7f42545d4c7df6faa76",
+        "android_client_info": {
+          "package_name": "com.angelasoft.angela_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvdl_yP6UATZsJ1D3R4jb-U5iSjpyxZ7s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

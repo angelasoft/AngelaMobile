@@ -6,6 +6,7 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/config/app_config.dart';
+import '../../core/push/push_service.dart';
 import '../../core/storage/token_storage.dart';
 import 'models/auth_result.dart';
 import 'models/oauth_identity.dart';
@@ -117,5 +118,9 @@ class AuthService {
     }
   }
 
-  Future<void> signOut() => _tokenStorage.clear();
+  /// 로그인 토큰이 남아 있을 때 기기 푸시 등록을 먼저 해제한다.
+  Future<void> signOut() async {
+    await PushService.instance.unregisterDevice();
+    await _tokenStorage.clear();
+  }
 }

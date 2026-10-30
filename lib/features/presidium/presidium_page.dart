@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/push/push_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../notifications/notification_service.dart';
 import '../notifications/notifications_page.dart';
@@ -27,7 +28,15 @@ class _PresidiumPageState extends State<PresidiumPage> {
   @override
   void initState() {
     super.initState();
+    // 앱을 쓰는 중에 푸시가 오면 종 배지를 바로 새로 고친다.
+    PushService.instance.received.addListener(_loadUnreadCount);
     _loadMyPresidium();
+  }
+
+  @override
+  void dispose() {
+    PushService.instance.received.removeListener(_loadUnreadCount);
+    super.dispose();
   }
 
   Future<void> _loadMyPresidium() async {
