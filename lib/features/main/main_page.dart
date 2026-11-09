@@ -8,7 +8,7 @@ import '../activity_report/activity_report_page.dart';
 import '../notifications/notifications_page.dart';
 import '../prayers/prayers_page.dart';
 import '../presidium/presidium_page.dart';
-import '../weekly_meeting/weekly_meeting_page.dart';
+import '../rosary/rosary_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -85,9 +85,9 @@ class _MainPageState extends State<MainPage> {
       activeIcon: Icons.edit_note,
     ),
     _MainTab(
-      label: '주 회합',
-      icon: Icons.event_outlined,
-      activeIcon: Icons.event,
+      label: '묵주기도',
+      icon: Icons.toll_outlined,
+      activeIcon: Icons.toll,
     ),
     _MainTab(
       label: '주요 기도문',
@@ -99,13 +99,15 @@ class _MainPageState extends State<MainPage> {
   final _pages = const [
     PresidiumPage(),
     ActivityReportPage(),
-    WeeklyMeetingPage(),
+    RosaryPage(),
     PrayersPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // 탭 화면은 위아래가 고정 영역이라 키보드 높이만큼 줄이면 넘친다. 입력 창(팝업·새 화면)은 각자 키보드를 피한다.
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         bottom: false,
         child: IndexedStack(

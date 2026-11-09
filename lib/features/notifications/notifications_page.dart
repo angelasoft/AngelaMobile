@@ -64,6 +64,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
       }
     }
     if (!mounted) return;
+    if (item.isGradeChange) {
+      await _load();
+      return;
+    }
 
     final Widget page = item.isAboutElection
         ? const OfficerElectionPage()
@@ -128,7 +132,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 return ListTile(
                   tileColor: item.isRead ? Colors.white : AppColors.accent.withValues(alpha: 0.06),
                   leading: Icon(
-                    item.isAboutElection ? Icons.how_to_vote_outlined : Icons.assignment_ind_outlined,
+                    item.isGradeChange
+                        ? Icons.workspace_premium_outlined
+                        : item.isAboutElection
+                            ? Icons.how_to_vote_outlined
+                            : Icons.assignment_ind_outlined,
                     color: AppColors.accent,
                   ),
                   title: Text(

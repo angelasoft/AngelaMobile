@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/korean_date.dart';
 import '../../../core/widgets/relative_time.dart';
 import 'governance_models.dart';
 import 'governance_service.dart';
+import 'officer_term_dialog.dart';
 
-/// 간부 이동: 현재 4간부, 진행 중인 투표(찬반), 지난 투표 결과. 4간부는 새 투표를 시작할 수 있다.
+/// 간부 이동: 현재 4간부와 임기, 진행 중인 투표(찬반)·당선자 임명, 지난 투표 결과.
+/// 4간부는 새 투표를 시작하고 간부 임기를 입력할 수 있다.
 class OfficerElectionPage extends StatefulWidget {
   const OfficerElectionPage({super.key});
 
@@ -22,6 +25,7 @@ class _OfficerElectionPageState extends State<OfficerElectionPage> {
   bool _isLoading = true;
   String? _error;
   int? _votingElectionId;
+  int? _busyElectionId;
 
   bool get _iAmOfficer => _members.any((m) => m.isMe && m.officerRole != null);
 
@@ -70,8 +74,8 @@ class _OfficerElectionPageState extends State<OfficerElectionPage> {
     setState(() => _votingElectionId = election.id);
     try {
       final result = await _service.vote(election.id, approve: approve);
-      if (result.status == 'APPOINTED') {
-        _showMessage('${result.candidateName} 단원이 ${result.positionLabel}에 임명되었습니다.');
+      if (result.isElected) {
+        _showMessage('${result.candidateName} 단원이 ${result.positionLabel}에 당선되었습니다. 임명일을 정해 임명해 주세요.');
       } else if (result.status == 'REJECTED') {
         _showMessage('${result.positionLabel} 임명 투표가 부결되었습니다.');
       } else {
@@ -82,6 +86,86 @@ class _OfficerElectionPageState extends State<OfficerElectionPage> {
       _showMessage(e.message);
     } finally {
       if (mounted) setState(() => _votingElectionId = null);
+    }
+  }
+
+  Future<void> _appoint(OfficerElectionItem election) async {
+    final term = await showOfficerTermDialog(
+      context,
+      title: '${election.positionLabel} 임명',
+      description: '${election.candidateName} 단원을 ${election.positionLabel}(으)로 임명해요. '
+          '같은 직책의 이전 간부는 물러나요.',
+      confirmLabel: '임명',
+    );
+    if (term == null) return;
+
+    setState(() => _busyElectionId = election.id);
+    try {
+      final result = await _service.appoint(
+        election.id,
+        appointedDate: term.appointedDate,
+        termYears: term.years,
+        termMonths: term.months,
+      );
+      _showMessage('${result.candidateName} 단원이 ${result.positionLabel}에 임명되었습니다.');
+      await _load();
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+      await _load();
+    } finally {
+      if (mounted) setState(() => _busyElectionId = null);
+    }
+  }
+
+  Future<void> _cancelElected(OfficerElectionItem election) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('당선을 취소할까요?'),
+        content: Text('${election.candidateName} 단원을 ${election.positionLabel}(으)로 임명하지 않고 투표를 취소해요.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('닫기')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('당선 취소')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _busyElectionId = election.id);
+    try {
+      await _service.cancelElected(election.id);
+      _showMessage('당선을 취소했습니다.');
+      await _load();
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+    } finally {
+      if (mounted) setState(() => _busyElectionId = null);
+    }
+  }
+
+  /// 4간부: 지금 간부의 임명일·임기 입력 (앱을 쓰기 전에 임명된 간부는 지난 날짜로).
+  Future<void> _editTerm(PresidiumMember officer) async {
+    final term = await showOfficerTermDialog(
+      context,
+      title: '${officer.officerLabel} 임기',
+      description: '${officer.displayName} 단원의 임명일과 임기를 입력해요.',
+      confirmLabel: '저장',
+      initialDate: officer.officerAppointedDate,
+      initialTermMonths: officer.officerTermMonths,
+    );
+    if (term == null) return;
+
+    try {
+      await _service.updateOfficerTerm(
+        officer.userId,
+        appointedDate: term.appointedDate,
+        termYears: term.years,
+        termMonths: term.months,
+      );
+      _showMessage('${officer.officerLabel} 임기를 저장했습니다.');
+      await _load();
+    } on ApiException catch (e) {
+      _showMessage(e.message);
     }
   }
 
@@ -96,12 +180,12 @@ class _OfficerElectionPageState extends State<OfficerElectionPage> {
       ),
       builder: (_) => _StartElectionSheet(
         members: _members.where((m) => m.isActive).toList(),
-        busyPositions: _elections.where((e) => e.isOpen).map((e) => e.positionLabel).toSet(),
+        busyPositions: _elections.where((e) => e.isActive).map((e) => e.positionLabel).toSet(),
         service: _service,
       ),
     );
     if (started == true) {
-      _showMessage('투표를 시작했습니다. 활동단원에게 알림이 전송되었습니다.');
+      _showMessage('투표를 시작했습니다. 행동단원에게 알림이 전송되었습니다.');
       await _load();
     }
   }
@@ -135,8 +219,8 @@ class _OfficerElectionPageState extends State<OfficerElectionPage> {
       return Center(child: Padding(padding: const EdgeInsets.all(32), child: Text(_error!)));
     }
 
-    final open = _elections.where((e) => e.isOpen).toList();
-    final closed = _elections.where((e) => !e.isOpen).toList();
+    final open = _elections.where((e) => e.isActive).toList();
+    final closed = _elections.where((e) => !e.isActive).toList();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -145,9 +229,9 @@ class _OfficerElectionPageState extends State<OfficerElectionPage> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
           _SectionTitle('현재 4간부'),
-          _OfficersCard(members: _members),
+          _OfficersCard(members: _members, onEditTerm: _iAmOfficer ? _editTerm : null),
           const SizedBox(height: 20),
-          _SectionTitle('진행 중인 투표'),
+          _SectionTitle('진행 중인 투표·임명'),
           if (open.isEmpty)
             _EmptyCard(
               _iAmOfficer
@@ -158,8 +242,10 @@ class _OfficerElectionPageState extends State<OfficerElectionPage> {
             for (final e in open)
               _ElectionCard(
                 election: e,
-                isVoting: _votingElectionId == e.id,
+                isVoting: _votingElectionId == e.id || _busyElectionId == e.id,
                 onVote: (approve) => _vote(e, approve),
+                onAppoint: e.canAppoint ? () => _appoint(e) : null,
+                onCancel: e.isElected && _iAmOfficer ? () => _cancelElected(e) : null,
               ),
           if (closed.isNotEmpty) ...[
             const SizedBox(height: 20),
@@ -168,8 +254,10 @@ class _OfficerElectionPageState extends State<OfficerElectionPage> {
           ],
           const SizedBox(height: 12),
           Text(
-            '· 투표 시작 시점의 활동단원 과반이 찬성하면 임명돼요.\n'
-            '· 과반 찬성이 불가능해지면 부결되고, 7일이 지나면 자동으로 종료돼요.',
+            '· 투표 시작 시점의 행동단원 과반이 찬성하면 당선돼요.\n'
+            '· 당선되면 4간부나 당선자가 임명일·임기를 정해 「간부 임명」을 눌러요.\n'
+            '· 과반 찬성이 불가능해지면 부결되고, 7일이 지나면 자동으로 종료돼요.\n'
+            '· 간부 임기가 끝나기 한 달 전에 단원 모두에게 간부 이동 알림이 가요.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.subtitle,
                   height: 1.6,
@@ -221,38 +309,74 @@ class _EmptyCard extends StatelessWidget {
 }
 
 class _OfficersCard extends StatelessWidget {
-  const _OfficersCard({required this.members});
+  const _OfficersCard({required this.members, this.onEditTerm});
 
   final List<PresidiumMember> members;
 
+  /// 4간부만: 간부를 눌러 임명일·임기를 입력한다.
+  final ValueChanged<PresidiumMember>? onEditTerm;
+
+  static const _warning = Color(0xFFD9534F);
+
   @override
   Widget build(BuildContext context) {
+    final today = DateTime.now();
     return Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           for (final position in OfficerPosition.values)
-            ListTile(
-              dense: true,
-              leading: SizedBox(
-                width: 52,
-                child: Text(
-                  position.label,
-                  style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700),
+            Builder(builder: (context) {
+              final holder = _holder(position);
+              final ending = holder != null && holder.isTermEndingBy(today);
+              return ListTile(
+                dense: true,
+                onTap: holder != null && onEditTerm != null ? () => onEditTerm!(holder) : null,
+                leading: SizedBox(
+                  width: 52,
+                  child: Text(
+                    position.label,
+                    style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700),
+                  ),
                 ),
-              ),
-              title: Text(
-                _holder(position)?.displayName ?? '공석',
-                style: TextStyle(
-                  color: _holder(position) == null ? AppColors.subtitle : AppColors.title,
-                  fontWeight: FontWeight.w500,
+                title: Text(
+                  holder?.displayName ?? '공석',
+                  style: TextStyle(
+                    color: holder == null ? AppColors.subtitle : AppColors.title,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ),
+                subtitle: holder == null
+                    ? null
+                    : Text(
+                        _termText(holder, ending),
+                        style: TextStyle(color: ending ? _warning : AppColors.subtitle, fontSize: 12),
+                      ),
+                trailing: holder != null && onEditTerm != null
+                    ? Icon(
+                        holder.officerAppointedDate == null ? Icons.edit_calendar_outlined : Icons.chevron_right,
+                        color: holder.officerAppointedDate == null ? AppColors.accent : AppColors.subtitle,
+                      )
+                    : null,
+              );
+            }),
         ],
       ),
     );
   }
+
+  String _termText(PresidiumMember holder, bool ending) {
+    final appointed = holder.officerAppointedDate;
+    final end = holder.officerTermEndDate;
+    if (appointed == null || end == null) {
+      return onEditTerm == null ? '임기 미입력' : '임기 미입력 · 눌러서 임명일·임기 입력';
+    }
+    final text = '${_dotDate(appointed)} 임명 · 임기 ${holder.officerTermLabel} (~${_dotDate(end)})';
+    return ending ? '$text\n임기 만료 임박 · 간부 이동이 필요해요' : text;
+  }
+
+  static String _dotDate(DateTime d) => '${d.year}.${d.month}.${d.day}';
 
   PresidiumMember? _holder(OfficerPosition position) {
     for (final m in members) {
@@ -263,17 +387,30 @@ class _OfficersCard extends StatelessWidget {
 }
 
 class _ElectionCard extends StatelessWidget {
-  const _ElectionCard({required this.election, this.isVoting = false, this.onVote});
+  const _ElectionCard({
+    required this.election,
+    this.isVoting = false,
+    this.onVote,
+    this.onAppoint,
+    this.onCancel,
+  });
 
   final OfficerElectionItem election;
   final bool isVoting;
   final ValueChanged<bool>? onVote;
+
+  /// 당선 뒤 4간부·당선자에게만.
+  final VoidCallback? onAppoint;
+
+  /// 당선 뒤 4간부에게만.
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
     final e = election;
     final statusColor = switch (e.status) {
       'OPEN' => AppColors.accent,
+      'ELECTED' => const Color(0xFFE08A00),
       'APPOINTED' => const Color(0xFF2E9E5B),
       _ => AppColors.subtitle,
     };
@@ -311,7 +448,7 @@ class _ElectionCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '찬성 ${e.yesCount} · 반대 ${e.noCount}  (임명에 찬성 ${e.requiredVotes}표 필요, 활동단원 ${e.eligibleVoterCount}명)',
+            '찬성 ${e.yesCount} · 반대 ${e.noCount}  (임명에 찬성 ${e.requiredVotes}표 필요, 행동단원 ${e.eligibleVoterCount}명)',
             style: TextStyle(color: AppColors.subtitle, fontSize: 13),
           ),
           const SizedBox(height: 2),
@@ -321,12 +458,45 @@ class _ElectionCard extends StatelessWidget {
                 : '${e.startedByName} 시작 · ${e.closedAt == null ? '' : relativeTime(e.closedAt!)} 종료',
             style: TextStyle(color: AppColors.subtitle.withValues(alpha: 0.8), fontSize: 12),
           ),
+          if (e.appointedDate != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${koreanFullDate(e.appointedDate!)} 임명 · 임기 ${e.termLabel ?? '-'}',
+              style: const TextStyle(color: Color(0xFF2E9E5B), fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ],
           if (e.myVote != null) ...[
             const SizedBox(height: 8),
             Text(
               '내 투표: ${e.myVote! ? '찬성' : '반대'}',
               style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w600),
             ),
+          ],
+          if (e.isElected) ...[
+            const SizedBox(height: 12),
+            if (onAppoint != null)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: isVoting ? null : onAppoint,
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
+                  icon: const Icon(Icons.badge_outlined, size: 18),
+                  label: const Text('간부 임명'),
+                ),
+              )
+            else
+              Text(
+                '당선되었어요. 4간부나 당선자가 임명일을 정해 임명하면 간부가 돼요.',
+                style: TextStyle(color: AppColors.subtitle, fontSize: 13),
+              ),
+            if (onCancel != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: isVoting ? null : onCancel,
+                  child: const Text('당선 취소', style: TextStyle(color: AppColors.subtitle)),
+                ),
+              ),
           ],
           if (e.isOpen && e.canVote && onVote != null) ...[
             const SizedBox(height: 12),
@@ -355,7 +525,7 @@ class _ElectionCard extends StatelessWidget {
   }
 }
 
-/// 투표 시작: 직책과 후보(활동단원)를 고른다.
+/// 투표 시작: 직책과 후보(행동단원)를 고른다.
 class _StartElectionSheet extends StatefulWidget {
   const _StartElectionSheet({
     required this.members,
@@ -412,7 +582,7 @@ class _StartElectionSheetState extends State<_StartElectionSheet> {
             ),
             const SizedBox(height: 4),
             Text(
-              '후보 1명을 정하면 활동단원에게 찬반 투표 알림이 가요.',
+              '후보 1명을 정하면 행동단원에게 찬반 투표 알림이 가요.',
               style: TextStyle(color: AppColors.subtitle),
             ),
             const SizedBox(height: 20),
@@ -423,7 +593,7 @@ class _StartElectionSheetState extends State<_StartElectionSheet> {
               children: [
                 for (final p in OfficerPosition.values)
                   ChoiceChip(
-                    label: Text(widget.busyPositions.contains(p.label) ? '${p.label} (투표 중)' : p.label),
+                    label: Text(widget.busyPositions.contains(p.label) ? '${p.label} (진행 중)' : p.label),
                     selected: _position == p,
                     onSelected: widget.busyPositions.contains(p.label)
                         ? null
@@ -432,7 +602,7 @@ class _StartElectionSheetState extends State<_StartElectionSheet> {
               ],
             ),
             const SizedBox(height: 20),
-            Text('후보 (활동단원)', style: TextStyle(color: AppColors.title, fontWeight: FontWeight.w600)),
+            Text('후보 (행동단원)', style: TextStyle(color: AppColors.title, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             RadioGroup<int>(
               groupValue: _candidateId,

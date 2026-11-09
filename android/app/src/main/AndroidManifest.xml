@@ -42,6 +42,10 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-6000104681344689~3735285660" />
+        <!-- 테스트 광고에 붙는 "Native ad validator" 말풍선을 끈다 (점검 통과 확인 후). -->
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.NATIVE_AD_DEBUGGER_ENABLED"
+            android:value="false" />
         <!-- FCM 푸시: 기본 채널(MainActivity 에서 생성)·상태 표시줄 아이콘·강조색 -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"

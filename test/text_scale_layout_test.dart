@@ -117,6 +117,24 @@ void main() {
         ),
       );
 
+  testWidgets('키보드가 올라와도 탭 화면 아래쪽이 넘치지 않는다', (tester) async {
+    tester.view.physicalSize = const Size(360 * 3, 760 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(
+      home: MediaQuery(
+        data: MediaQueryData(
+          size: Size(360, 760),
+          viewInsets: EdgeInsets.only(bottom: 320),
+          textScaler: TextScaler.linear(1.3),
+        ),
+        child: MainPage(),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [320.0, 360.0]) {
     for (final scale in [1.0, 1.3, 1.6]) {
       testWidgets('화면 구성 요소: 폭 ${width.toInt()}dp, 글자 ${(scale * 100).round()}%', (tester) async {

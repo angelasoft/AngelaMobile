@@ -2,8 +2,9 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 
-/// 광고가 들어가는 화면. 활동보고·주 회합에는 광고를 넣지 않는다.
-enum AdPlacement { home, prayer }
+/// 광고가 들어가는 화면. [rosaryPrayer] 는 묵주기도를 바치는 화면으로, 뒤에 남아 있는 신비 선택 화면([rosary])과
+/// 같은 광고 단위를 쓰지만 같은 광고 객체를 두 화면에 동시에 붙일 수 없어 자리를 따로 둔다.
+enum AdPlacement { home, prayer, activity, rosary, rosaryPrayer }
 
 /// 광고 설정값. 정책(빈도·간격)과 광고 단위 ID 를 한 곳에서 관리한다.
 abstract final class AdsConfig {
@@ -28,6 +29,11 @@ abstract final class AdsConfig {
   static const nativeHomeEnabled = true;
   static const nativePrayerEnabled = true;
 
+  /// 활동보고는 −/+ 버튼이 많아 실수 클릭을 막으려고 버튼과 먼 화면 맨 위에만 둔다.
+  static const nativeActivityEnabled = true;
+  /// 묵주기도 신비 선택 화면과 기도하는 화면 둘 다.
+  static const nativeRosaryEnabled = true;
+
   /// 화면에 다시 들어올 때, 이전 교체 뒤 이만큼 지나야 새 네이티브 광고로 바꾼다.
   static const nativeRefreshMin = Duration(seconds: 60);
 
@@ -44,11 +50,15 @@ abstract final class AdsConfig {
   static bool placementEnabled(AdPlacement placement) => switch (placement) {
         AdPlacement.home => nativeHomeEnabled,
         AdPlacement.prayer => nativePrayerEnabled,
+        AdPlacement.activity => nativeActivityEnabled,
+        AdPlacement.rosary || AdPlacement.rosaryPrayer => nativeRosaryEnabled,
       };
 
   static String nativeUnitId(AdPlacement placement) => switch (placement) {
         AdPlacement.home => _units!.homeNative,
         AdPlacement.prayer => _units!.prayerNative,
+        AdPlacement.activity => _units!.activityNative,
+        AdPlacement.rosary || AdPlacement.rosaryPrayer => _units!.rosaryNative,
       };
 
   /// 개발 중에는 Google 테스트 광고 단위만 쓴다. 실제 ID 로 내 광고를 누르면 계정이 정지될 수 있다.
@@ -63,25 +73,39 @@ abstract final class AdsConfig {
     appOpen: 'ca-app-pub-6000104681344689/3487873657',
     homeNative: 'ca-app-pub-6000104681344689/9240774119',
     prayerNative: 'ca-app-pub-6000104681344689/7977783006',
+    activityNative: 'ca-app-pub-6000104681344689/1174369808',
+    rosaryNative: 'ca-app-pub-6000104681344689/8594353961',
   );
 
   static const _androidTest = _AdUnits(
     appOpen: 'ca-app-pub-3940256099942544/9257395921',
     homeNative: 'ca-app-pub-3940256099942544/2247696110',
     prayerNative: 'ca-app-pub-3940256099942544/2247696110',
+    activityNative: 'ca-app-pub-3940256099942544/2247696110',
+    rosaryNative: 'ca-app-pub-3940256099942544/2247696110',
   );
 
   static const _iosTest = _AdUnits(
     appOpen: 'ca-app-pub-3940256099942544/5575463023',
     homeNative: 'ca-app-pub-3940256099942544/3986624511',
     prayerNative: 'ca-app-pub-3940256099942544/3986624511',
+    activityNative: 'ca-app-pub-3940256099942544/3986624511',
+    rosaryNative: 'ca-app-pub-3940256099942544/3986624511',
   );
 }
 
 class _AdUnits {
-  const _AdUnits({required this.appOpen, required this.homeNative, required this.prayerNative});
+  const _AdUnits({
+    required this.appOpen,
+    required this.homeNative,
+    required this.prayerNative,
+    required this.activityNative,
+    required this.rosaryNative,
+  });
 
   final String appOpen;
   final String homeNative;
   final String prayerNative;
+  final String activityNative;
+  final String rosaryNative;
 }

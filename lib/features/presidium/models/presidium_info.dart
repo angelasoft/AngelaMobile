@@ -10,7 +10,7 @@ class PresidiumInfo {
     this.type = 'ADULT',
     this.typeLabel = '어른',
     this.grade = 'ACTIVE',
-    this.gradeLabel = '활동단원',
+    this.gradeLabel = '행동단원',
     this.officerRole,
     this.officerLabel,
   });
@@ -26,7 +26,7 @@ class PresidiumInfo {
   final String type;
   final String typeLabel;
 
-  /// ACTIVE(활동단원) | AUXILIARY(협조단원)
+  /// ACTIVE(행동단원) | PRAETORIAN(쁘레또리움 단원) | AUXILIARY(협조단원) | ADJUTORIAN(아듀또리움 단원)
   final String grade;
   final String gradeLabel;
 
@@ -35,10 +35,12 @@ class PresidiumInfo {
   final String? officerLabel;
 
   bool get isOfficer => officerRole != null;
-  bool get isActiveMember => grade == 'ACTIVE';
+  /// 행동단원 갈래(행동단원·쁘레또리움 단원).
+  bool get isActiveMember => grade == 'ACTIVE' || grade == 'PRAETORIAN';
+  bool get isPresident => officerRole == 'PRESIDENT';
   bool get isJunior => type == 'JUNIOR';
 
-  /// 예: "단장 · 활동단원", "협조단원"
+  /// 예: "단장 · 행동단원", "협조단원"
   String get myStatusLabel =>
       officerLabel == null ? gradeLabel : '$officerLabel · $gradeLabel';
 
@@ -69,7 +71,7 @@ class PresidiumInfo {
       type: p['type'] as String? ?? 'ADULT',
       typeLabel: p['typeLabel'] as String? ?? '어른',
       grade: json['grade'] as String? ?? 'ACTIVE',
-      gradeLabel: json['gradeLabel'] as String? ?? '활동단원',
+      gradeLabel: json['gradeLabel'] as String? ?? '행동단원',
       officerRole: json['officerRole'] as String?,
       officerLabel: json['officerLabel'] as String?,
     );

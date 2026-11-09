@@ -19,9 +19,10 @@ class ActivityReportRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 한 화면에 더 많은 활동이 보이도록 위아래 여백을 좁게 둔다 (버튼 크기는 그대로).
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.fromLTRB(4, 4, 10, 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -33,6 +34,8 @@ class ActivityReportRow extends StatelessWidget {
         children: [
           IconButton(
             onPressed: onFavoriteToggle,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            padding: EdgeInsets.zero,
             icon: Icon(
               entry.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
               color: entry.isFavorite

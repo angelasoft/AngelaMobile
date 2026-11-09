@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import '../text_scale/text_scale_buttons.dart';
 import '../theme/app_colors.dart';
 
-/// 탭 상단 제목 + 글자 크기 버튼.
+/// 탭 상단 제목 + 글자 크기 버튼 (+ 설정 등 [actions]).
 class AppTabHeader extends StatelessWidget {
-  const AppTabHeader({super.key, required this.title});
+  const AppTabHeader({super.key, required this.title, this.actions = const []});
 
   final String title;
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +37,7 @@ class AppTabHeader extends StatelessWidget {
             ),
           ),
           const TextScaleButtons(),
+          ...actions,
         ],
       ),
     );

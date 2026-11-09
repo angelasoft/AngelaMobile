@@ -10,6 +10,7 @@ import '../../core/config/app_config.dart';
 import '../../core/presidium/current_presidium.dart';
 import '../../core/push/push_service.dart';
 import '../../core/storage/token_storage.dart';
+import '../presidium/my_presidiums.dart';
 import 'models/auth_result.dart';
 import 'models/oauth_identity.dart';
 import 'models/sign_up_request.dart';
@@ -129,6 +130,7 @@ class AuthService {
   Future<void> signOut() async {
     await PushService.instance.unregisterDevice();
     await CurrentPresidium.clear();
+    MyPresidiums.reset();
     await _tokenStorage.clear();
   }
 }

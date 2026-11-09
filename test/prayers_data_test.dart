@@ -22,7 +22,7 @@ void main() {
 
 둘째 기도
 ## 환희의 신비
-@image assets/prayers/rosary_guide.gif
+@image assets/prayers/example.png
 ### 1단
 본문
 ''';
@@ -56,7 +56,6 @@ void main() {
       'litany': 6,
       'various': 42,
       'confession': 1,
-      'rosary': 2,
       'stations': 1,
     });
     expect(categories.first.prayers.map((p) => p.title).take(3),

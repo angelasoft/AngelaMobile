@@ -26,7 +26,8 @@ class AppNotification {
 
   final int id;
 
-  /// MEMBERSHIP_REQUEST | MEMBERSHIP_REQUEST_RESULT | ELECTION_STARTED | ELECTION_RESULT
+  /// MEMBERSHIP_REQUEST | MEMBERSHIP_REQUEST_RESULT | ELECTION_STARTED | ELECTION_RESULT | GRADE_CHANGED
+  /// | OFFICER_TERM_ENDING
   final String type;
   final String title;
   final String message;
@@ -34,7 +35,12 @@ class AppNotification {
   final bool isRead;
   final DateTime createdAt;
 
-  bool get isAboutElection => type == 'ELECTION_STARTED' || type == 'ELECTION_RESULT';
+  /// 간부 투표·임기 만료 알림은 간부 이동 화면을 연다.
+  bool get isAboutElection =>
+      type == 'ELECTION_STARTED' || type == 'ELECTION_RESULT' || type == 'OFFICER_TERM_ENDING';
+
+  /// 쁘레또리움·아듀또리움 임명/해제 알림은 내용만 알리고 따로 열 화면이 없다.
+  bool get isGradeChange => type == 'GRADE_CHANGED';
 }
 
 class NotificationService {

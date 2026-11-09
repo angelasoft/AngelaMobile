@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/ads/ads_config.dart';
-import '../../../core/ads/native_ad_slot.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../activity_report/activity_service.dart';
 import '../../../core/widgets/won_format.dart';
+import '../attendance/attendance_page.dart';
+import '../attendance/attendance_service.dart';
 import '../ledger/ledger_page.dart';
 import '../ledger/ledger_service.dart';
 import '../models/presidium_info.dart';
@@ -19,7 +19,7 @@ import '../volunteer/volunteer_schedule_page.dart';
 import '../volunteer/volunteer_schedule_tile.dart';
 import '../volunteer/volunteer_service.dart';
 
-/// 가입한 쁘레시디움 첫 화면: 공지사항 · 봉사 일정 · 이번 달 활동 통계 · 회계 보고 카드.
+/// 가입한 쁘레시디움 첫 화면: 출석부 · 공지사항 · 봉사 일정 · 이번 달 활동 통계 · 회계 보고 카드.
 class PresidiumHome extends StatefulWidget {
   const PresidiumHome({super.key, required this.presidium});
 
@@ -36,7 +36,10 @@ class _PresidiumHomeState extends State<PresidiumHome> {
   final _volunteerService = const VolunteerService();
   final _statsService = const ActivityStatsService();
   final _ledgerService = const LedgerService();
+  final _attendanceService = const AttendanceService();
 
+  Map<AttendanceKind, AttendanceOverview>? _attendance;
+  String? _attendanceError;
   List<Notice>? _notices;
   List<VolunteerSchedule>? _upcoming;
   MonthlyActivityStats? _stats;
@@ -59,7 +62,31 @@ class _PresidiumHomeState extends State<PresidiumHome> {
     super.dispose();
   }
 
-  Future<void> _loadAll() => Future.wait([_loadNotices(), _loadSchedules(), _loadStats(), _loadLedger()]);
+  Future<void> _loadAll() =>
+      Future.wait([_loadAttendance(), _loadNotices(), _loadSchedules(), _loadStats(), _loadLedger()]);
+
+  Future<void> _loadAttendance() async {
+    try {
+      final results = await Future.wait(AttendanceKind.values.map(_attendanceService.fetch));
+      if (!mounted) return;
+      setState(() {
+        _attendance = {for (var i = 0; i < results.length; i++) AttendanceKind.values[i]: results[i]};
+        _attendanceError = null;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _attendanceError = e.message);
+    }
+  }
+
+  Future<void> _openAttendance(AttendanceKind kind) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AttendancePage(kind: kind, presidiumName: widget.presidium.name),
+      ),
+    );
+    await _loadAttendance();
+  }
 
   Future<void> _loadLedger() async {
     final now = DateTime.now();
@@ -147,12 +174,19 @@ class _PresidiumHomeState extends State<PresidiumHome> {
 
   @override
   Widget build(BuildContext context) {
+    // 광고는 쁘레시디움 탭(PresidiumPage)이 위에 고정해 두고, 홈은 카드들만 스크롤한다.
     return RefreshIndicator(
       onRefresh: _loadAll,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
+          _HomeCard(
+            icon: Icons.fact_check_outlined,
+            title: '출석부',
+            child: _attendanceContent(),
+          ),
+          const SizedBox(height: 14),
           _HomeCard(
             icon: Icons.campaign_outlined,
             title: '공지사항',
@@ -161,11 +195,6 @@ class _PresidiumHomeState extends State<PresidiumHome> {
             child: _noticeContent(),
           ),
           const SizedBox(height: 14),
-          const NativeAdSlot(
-            placement: AdPlacement.home,
-            tabIndex: 0,
-            margin: EdgeInsets.only(bottom: 14),
-          ),
           _HomeCard(
             icon: Icons.volunteer_activism_outlined,
             title: '봉사 일정',
@@ -191,6 +220,48 @@ class _PresidiumHomeState extends State<PresidiumHome> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _attendanceContent() {
+    if (_attendanceError != null && _attendance == null) return _message(_attendanceError!);
+    final attendance = _attendance;
+    if (attendance == null) return const _CardLoading();
+    return Column(
+      children: [
+        for (final kind in AttendanceKind.values) ...[
+          if (kind != AttendanceKind.values.first) Divider(height: 1, color: AppColors.shadow.withValues(alpha: 0.1)),
+          _attendanceRow(kind, attendance[kind]!),
+        ],
+      ],
+    );
+  }
+
+  Widget _attendanceRow(AttendanceKind kind, AttendanceOverview o) {
+    final String status;
+    if (!o.configured) {
+      status = '일정 미입력';
+    } else if (o.open) {
+      status = o.recorded ? '오늘 출석부 저장됨' : (o.canEdit ? '지금 출석 체크하기' : '오늘 출석 체크 중');
+    } else {
+      status = '다음 ${o.meetingWhenLabel ?? '-'}';
+    }
+    final highlight = o.open && !o.recorded;
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      onTap: () => _openAttendance(kind),
+      leading: Icon(
+        o.open ? Icons.lock_open : Icons.lock_clock,
+        color: highlight ? AppColors.accent : AppColors.subtitle,
+        size: 20,
+      ),
+      title: Text(kind.title, style: const TextStyle(color: AppColors.title, fontWeight: FontWeight.w600)),
+      subtitle: Text(
+        status,
+        style: TextStyle(color: highlight ? AppColors.accent : AppColors.subtitle, fontWeight: highlight ? FontWeight.w700 : null),
+      ),
+      trailing: const Icon(Icons.chevron_right, color: AppColors.subtitle),
     );
   }
 

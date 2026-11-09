@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../core/ads/ads_config.dart';
+import '../../core/ads/native_ad_slot.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_tab_header.dart';
 import '../../core/network/api_client.dart';
 import '../../core/presidium/current_presidium.dart';
 import '../../core/widgets/korean_date.dart';
+import '../presidium/governance/governance_service.dart';
+import '../presidium/my_presidiums.dart';
+import '../presidium/widgets/join_presidium_prompt.dart';
 import 'activity_service.dart';
 import 'models/activity_report_entry.dart';
 import 'widgets/activity_report_row.dart';
@@ -239,6 +244,25 @@ class _ActivityReportPageState extends State<ActivityReportPage>
     return result ?? false;
   }
 
+  /// 목록에 없는 활동을 등록 요청한다. 내 쁘레시디움 4간부 과반이 승인하면 모든 쁘레시디움 목록에 추가된다.
+  Future<void> _requestActivity(String initialName) async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => _ActivityRequestDialog(initialName: initialName.trim()),
+    );
+    if (name == null || !mounted) return;
+    try {
+      await const GovernanceService().requestActivity(name);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("'$name' 활동 등록을 요청했어요.\n4간부가 승인하면 활동 목록에 추가돼요."),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   Widget _buildList(List<ActivityReportEntry> visibleEntries, String query) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -253,14 +277,29 @@ class _ActivityReportPageState extends State<ActivityReportPage>
       child: visibleEntries.isEmpty
           ? ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              children: [_EmptyReportList(query: query)],
+              children: [
+                _EmptyReportList(
+                  query: query,
+                  onRequest: () => _requestActivity(query),
+                ),
+              ],
             )
           : ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              itemCount: visibleEntries.length,
+              // 마지막 줄은 "목록에 없는 활동 등록 요청".
+              itemCount: visibleEntries.length + 1,
               itemBuilder: (context, index) {
+                if (index == visibleEntries.length) {
+                  return Center(
+                    child: TextButton.icon(
+                      onPressed: () => _requestActivity(query),
+                      icon: const Icon(Icons.add_circle_outline),
+                      label: const Text('찾는 활동이 없나요? 활동 등록 요청'),
+                    ),
+                  );
+                }
                 final entry = visibleEntries[index];
                 return ActivityReportRow(
                   entry: entry,
@@ -280,47 +319,79 @@ class _ActivityReportPageState extends State<ActivityReportPage>
 
     return ColoredBox(
       color: AppColors.backgroundMid,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const AppTabHeader(title: '활동보고'),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: ActivitySearchBar(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              onChanged: (_) => setState(() {}),
-              onClear: _clearSearch,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: Row(
-              children: [
-                Text(
-                  '보고 목록',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: AppColors.title,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  query.isEmpty
-                      ? '★ 즐겨찾기가 위에 표시돼요'
-                      : '검색 결과 ${visibleEntries.length}개',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.subtitle.withValues(alpha: 0.75),
-                      ),
+      child: ValueListenableBuilder<MyPresidiumsState>(
+        valueListenable: MyPresidiums.state,
+        builder: (context, membership, _) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTabHeader(
+              title: '활동보고',
+              actions: [
+                IconButton(
+                  onPressed: () => MyPresidiums.openSettings(context),
+                  icon: const Icon(Icons.settings_outlined),
+                  color: AppColors.subtitle,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  padding: EdgeInsets.zero,
+                  tooltip: '설정',
                 ),
               ],
             ),
-          ),
-          Expanded(child: _buildList(visibleEntries, query)),
-          _buildSubmitBar(),
-        ],
+            if (!membership.loaded)
+              const Expanded(child: Center(child: CircularProgressIndicator()))
+            else if (!membership.joined)
+              const Expanded(child: JoinPresidiumPrompt())
+            else
+              ..._reportBody(visibleEntries, query),
+          ],
+        ),
       ),
     );
+  }
+
+  /// 가입한 쁘레시디움이 있을 때의 활동보고 화면. 광고와 검색창은 위에 고정하고 보고 목록만 스크롤한다.
+  List<Widget> _reportBody(List<ActivityReportEntry> visibleEntries, String query) {
+    return [
+      const NativeAdSlot(
+        placement: AdPlacement.activity,
+        tabIndex: 1,
+        margin: EdgeInsets.fromLTRB(16, 10, 16, 0),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        child: ActivitySearchBar(
+          controller: _searchController,
+          focusNode: _searchFocusNode,
+          onChanged: (_) => setState(() {}),
+          onClear: _clearSearch,
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+        child: Row(
+          children: [
+            Text(
+              '보고 목록',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: AppColors.title,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              query.isEmpty
+                  ? '★ 즐겨찾기가 위에 표시돼요'
+                  : '검색 결과 ${visibleEntries.length}개',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.subtitle.withValues(alpha: 0.75),
+                  ),
+            ),
+          ],
+        ),
+      ),
+      Expanded(child: _buildList(visibleEntries, query)),
+      _buildSubmitBar(),
+    ];
   }
 
   Widget _buildSubmitBar() {
@@ -333,15 +404,15 @@ class _ActivityReportPageState extends State<ActivityReportPage>
     if (week == null) {
       status = _weekError ?? '이번 주 보고를 불러오는 중이에요.';
     } else {
-      final target = presidiumName == null ? '' : '$presidiumName에 보고\n';
       final period = '${week.weekStart.month}/${week.weekStart.day}(월)~'
           '${week.weekEnd.month}/${week.weekEnd.day}(일)';
       final updatedAt = week.updatedAt;
-      status = updatedAt == null
-          ? '$target이번 주 $period · 아직 제출하지 않았어요'
-          : '$target이번 주 $period · ${koreanMonthDay(updatedAt)} '
-              '${koreanTime(TimeOfDay.fromDateTime(updatedAt))} 제출됨'
-              '${dirty ? '\n변경한 내용은 다시 제출해야 반영돼요' : ''}';
+      final state = updatedAt == null
+          ? '아직 제출 전'
+          : dirty
+              ? '바꾼 내용은 다시 제출해 주세요'
+              : '${koreanShortDate(updatedAt)} ${koreanTime(TimeOfDay.fromDateTime(updatedAt))} 제출됨';
+      status = [?presidiumName, '이번 주 $period', state].join(' · ');
     }
 
     final String label;
@@ -363,9 +434,10 @@ class _ActivityReportPageState extends State<ActivityReportPage>
 }
 
 class _EmptyReportList extends StatelessWidget {
-  const _EmptyReportList({required this.query});
+  const _EmptyReportList({required this.query, required this.onRequest});
 
   final String query;
+  final VoidCallback onRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -391,9 +463,81 @@ class _EmptyReportList extends StatelessWidget {
                     height: 1.5,
                   ),
             ),
+            const SizedBox(height: 16),
+            FilledButton.tonalIcon(
+              onPressed: onRequest,
+              icon: const Icon(Icons.add),
+              label: Text(query.isEmpty ? '활동 등록 요청' : "'$query' 활동 등록 요청"),
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 등록 요청할 활동 이름을 받는다. 확인하면 다듬은 이름을, 취소하면 null.
+class _ActivityRequestDialog extends StatefulWidget {
+  const _ActivityRequestDialog({required this.initialName});
+
+  final String initialName;
+
+  @override
+  State<_ActivityRequestDialog> createState() => _ActivityRequestDialogState();
+}
+
+class _ActivityRequestDialogState extends State<_ActivityRequestDialog> {
+  static const _maxLength = 30;
+  late final _controller = TextEditingController(text: widget.initialName);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _controller.text.trim();
+    if (name.isEmpty) return;
+    Navigator.pop(context, name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('활동 등록 요청'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '내 쁘레시디움 4간부의 과반이 승인하면 모든 쁘레시디움의 활동보고 목록에 추가돼요.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.subtitle, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              maxLength: _maxLength,
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                labelText: '활동 이름',
+                hintText: '예: 본당 꽃꽂이',
+              ),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _submit(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+        FilledButton(
+          onPressed: _controller.text.trim().isEmpty ? null : _submit,
+          child: const Text('요청'),
+        ),
+      ],
     );
   }
 }
@@ -458,7 +602,7 @@ class _SubmitBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -483,15 +627,17 @@ class _SubmitBar extends StatelessWidget {
             Text(
               status,
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: highlightStatus ? AppColors.accent : AppColors.subtitle,
                     fontWeight: highlightStatus ? FontWeight.w600 : null,
-                    height: 1.4,
+                    height: 1.3,
                   ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             SizedBox(
-              height: 52,
+              height: 46,
               child: FilledButton(
                 onPressed: onSubmit,
                 style: FilledButton.styleFrom(

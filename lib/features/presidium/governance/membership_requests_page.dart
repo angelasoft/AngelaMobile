@@ -6,7 +6,7 @@ import '../../../core/widgets/relative_time.dart';
 import 'governance_models.dart';
 import 'governance_service.dart';
 
-/// 승인 요청: 4간부는 협조단원·퇴단 신청을 승인/반려하고, 모두 내 신청 내역을 본다.
+/// 승인 요청: 4간부는 등급 변경·퇴단 신청과 활동 등록 요청을 승인/반려하고, 모두 내 신청 내역을 본다.
 class MembershipRequestsPage extends StatefulWidget {
   const MembershipRequestsPage({super.key});
 
@@ -46,7 +46,7 @@ class _MembershipRequestsPageState extends State<MembershipRequestsPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(approve ? '승인하시겠어요?' : '반려하시겠어요?'),
-        content: Text('${request.requesterName} 단원의 ${request.typeLabel}을 ${approve ? '승인' : '반려'}합니다.'),
+        content: Text('${request.requesterName} 단원의 ${request.displayLabel}을 ${approve ? '승인' : '반려'}합니다.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
           FilledButton(
@@ -61,8 +61,8 @@ class _MembershipRequestsPageState extends State<MembershipRequestsPage> {
     await _run(request.id, () async {
       final result = await _service.decide(request.id, approve: approve);
       _showMessage(switch (result.status) {
-        'APPROVED' => '${result.typeLabel}이 승인되어 처리되었습니다.',
-        'REJECTED' => '${result.typeLabel}이 반려되었습니다.',
+        'APPROVED' => '${result.displayLabel}이 승인되어 처리되었습니다.',
+        'REJECTED' => '${result.displayLabel}이 반려되었습니다.',
         _ => '결정했습니다. 다른 간부의 승인을 기다리고 있어요.',
       });
     });
@@ -71,7 +71,7 @@ class _MembershipRequestsPageState extends State<MembershipRequestsPage> {
   Future<void> _cancel(MembershipRequestItem request) async {
     await _run(request.id, () async {
       await _service.cancelRequest(request.id);
-      _showMessage('${request.typeLabel}을 취소했습니다.');
+      _showMessage('${request.displayLabel}을 취소했습니다.');
     });
   }
 
@@ -200,7 +200,7 @@ class _RequestCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '${r.typeLabel} · ${r.requesterName}',
+                  '${r.displayLabel} · ${r.requesterName}',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: AppColors.title,
                         fontWeight: FontWeight.w700,

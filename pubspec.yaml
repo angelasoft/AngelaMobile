@@ -43,6 +43,7 @@ dependencies:
   firebase_core: ^5.1.0
   firebase_messaging: ^17.0.1
   google_mobile_ads: ^9.2.0
+  wakelock_plus: ^1.7.0
 
 dev_dependencies:
   flutter_test:
