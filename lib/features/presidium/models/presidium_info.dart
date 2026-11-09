@@ -7,6 +7,8 @@ class PresidiumInfo {
     required this.name,
     this.curiaName,
     this.parishName,
+    this.type = 'ADULT',
+    this.typeLabel = '어른',
     this.grade = 'ACTIVE',
     this.gradeLabel = '활동단원',
     this.officerRole,
@@ -20,6 +22,10 @@ class PresidiumInfo {
   final String? curiaName;
   final String? parishName;
 
+  /// ADULT(어른) | JUNIOR(소년소녀). 어른은 1곳, 소년소녀는 여러 곳 가입할 수 있다.
+  final String type;
+  final String typeLabel;
+
   /// ACTIVE(활동단원) | AUXILIARY(협조단원)
   final String grade;
   final String gradeLabel;
@@ -30,6 +36,7 @@ class PresidiumInfo {
 
   bool get isOfficer => officerRole != null;
   bool get isActiveMember => grade == 'ACTIVE';
+  bool get isJunior => type == 'JUNIOR';
 
   /// 예: "단장 · 활동단원", "협조단원"
   String get myStatusLabel =>
@@ -45,6 +52,8 @@ class PresidiumInfo {
       name: displayName(item.curiaName, item.name),
       curiaName: item.curiaName,
       parishName: item.parishName,
+      type: item.type,
+      typeLabel: item.typeLabel,
     );
   }
 
@@ -57,6 +66,8 @@ class PresidiumInfo {
       name: displayName(curia, pr),
       curiaName: curia,
       parishName: p['parishName'] as String?,
+      type: p['type'] as String? ?? 'ADULT',
+      typeLabel: p['typeLabel'] as String? ?? '어른',
       grade: json['grade'] as String? ?? 'ACTIVE',
       gradeLabel: json['gradeLabel'] as String? ?? '활동단원',
       officerRole: json['officerRole'] as String?,

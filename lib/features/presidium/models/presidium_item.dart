@@ -7,6 +7,8 @@ class PresidiumItem {
     required this.name,
     required this.parishId,
     required this.parishName,
+    this.type = 'ADULT',
+    this.typeLabel = '어른',
   });
 
   factory PresidiumItem.fromJson(Map<String, dynamic> json) {
@@ -17,6 +19,8 @@ class PresidiumItem {
       name: json['name'] as String,
       parishId: json['parishId'] as int,
       parishName: json['parishName'] as String? ?? '',
+      type: json['type'] as String? ?? 'ADULT',
+      typeLabel: json['typeLabel'] as String? ?? '어른',
     );
   }
 
@@ -26,6 +30,12 @@ class PresidiumItem {
   final String name;
   final int parishId;
   final String parishName;
+
+  /// ADULT(어른) | JUNIOR(소년소녀)
+  final String type;
+  final String typeLabel;
+
+  bool get isJunior => type == 'JUNIOR';
 
   /// 화면 표시: "즐거움의샘 Cu > 유스티노 Pr"
   String get hierarchyLabel => '$curiaName Cu > $name Pr';

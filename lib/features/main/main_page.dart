@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/ads/app_open_ad_manager.dart';
+import '../../core/ads/native_ad_slot.dart';
 import '../../core/push/push_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../activity_report/activity_report_page.dart';
@@ -25,6 +27,8 @@ class _MainPageState extends State<MainPage> {
     _push.received.addListener(_onPushReceived);
     _push.opened.addListener(_onPushOpened);
     _push.registerDevice();
+    AppOpenAdManager.instance.watchAppResume();
+    VisibleTab.index.value = _currentIndex;
     // 알림을 눌러 앱을 처음 열었으면 첫 화면이 그려진 뒤 알림함으로 간다.
     WidgetsBinding.instance.addPostFrameCallback((_) => _onPushOpened());
   }
@@ -57,8 +61,13 @@ class _MainPageState extends State<MainPage> {
     _openNotifications();
   }
 
+  void _selectTab(int index) {
+    setState(() => _currentIndex = index);
+    VisibleTab.index.value = index;
+  }
+
   void _openNotifications() {
-    setState(() => _currentIndex = 0);
+    _selectTab(0);
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const NotificationsPage()),
     );
@@ -108,7 +117,7 @@ class _MainPageState extends State<MainPage> {
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           FocusManager.instance.primaryFocus?.unfocus();
-          setState(() => _currentIndex = index);
+          _selectTab(index);
         },
         backgroundColor: Colors.white,
         indicatorColor: AppColors.accentLight.withValues(alpha: 0.3),

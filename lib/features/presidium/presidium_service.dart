@@ -80,24 +80,25 @@ class PresidiumService {
         .toList();
   }
 
-  /// 내 가입 쁘레시디움. 미가입이면 null.
-  Future<PresidiumInfo?> fetchMyPresidium() async {
+  /// 가입한 쁘레시디움 전체 (어른 쁘레시디움이 먼저). 미가입이면 빈 목록.
+  Future<List<PresidiumInfo>> fetchMyPresidiums() async {
     final token = await _tokenStorage.readAccessToken();
-    if (token == null) return null;
+    if (token == null) return const [];
 
     final response = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/app/presidiums/me'),
+      Uri.parse('${AppConfig.baseUrl}/app/presidiums/mine'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
-    if (response.statusCode == 401) return null;
+    if (response.statusCode == 401) return const [];
     if (response.statusCode != 200) {
       throw const PresidiumServiceException('가입 정보를 불러오지 못했습니다.');
     }
 
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
-    if (json['joined'] != true) return null;
-    return PresidiumInfo.fromMyPresidiumJson(json);
+    final list = jsonDecode(response.body) as List<dynamic>;
+    return list
+        .map((e) => PresidiumInfo.fromMyPresidiumJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<PresidiumInfo> joinPresidium(int presidiumId) async {
@@ -125,10 +126,12 @@ class PresidiumService {
     int? curiaId,
     String? curiaName,
     required String name,
+    bool junior = false,
   }) async {
     final body = <String, dynamic>{
       'parishId': parishId,
       'name': name,
+      'type': junior ? 'JUNIOR' : 'ADULT',
     };
     if (curiaId != null) body['curiaId'] = curiaId;
     if (curiaName != null && curiaName.trim().isNotEmpty) {

@@ -3,18 +3,21 @@ import 'package:flutter/material.dart';
 import '../../../core/text_scale/text_scale_buttons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/presidium_info.dart';
+import 'presidium_type_badge.dart';
 
-/// 쁘레시디움 탭 상단: 이름, 글자 크기, 알림, 설정.
+/// 쁘레시디움 탭 상단: 이름(누르면 쁘레시디움 바꾸기), 글자 크기, 알림, 설정.
 class PresidiumHeader extends StatelessWidget {
   const PresidiumHeader({
     super.key,
     this.presidium,
+    this.onTitleTap,
     this.onSettingsTap,
     this.onNotificationsTap,
     this.unreadCount = 0,
   });
 
   final PresidiumInfo? presidium;
+  final VoidCallback? onTitleTap;
   final VoidCallback? onSettingsTap;
   final VoidCallback? onNotificationsTap;
   final int unreadCount;
@@ -38,21 +41,41 @@ class PresidiumHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  presidium?.name ?? '쁘레시디움',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.titleMedium?.copyWith(
-                    color: AppColors.title,
-                    fontWeight: FontWeight.w700,
-                    height: 1.25,
-                  ),
+            child: InkWell(
+              onTap: onTitleTap,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (presidium?.isJunior ?? false) ...[
+                      PresidiumTypeBadge(label: presidium!.typeLabel),
+                      const SizedBox(height: 2),
+                    ],
+                    Text.rich(
+                      TextSpan(
+                        text: presidium?.name ?? '쁘레시디움',
+                        children: [
+                          if (onTitleTap != null)
+                            const WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Icon(Icons.arrow_drop_down, color: AppColors.accent),
+                            ),
+                        ],
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: AppColors.title,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
           const TextScaleButtons(),

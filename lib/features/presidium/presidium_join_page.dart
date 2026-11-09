@@ -10,9 +10,13 @@ import 'models/presidium_item.dart';
 import 'presidium_service.dart';
 import 'widgets/create_presidium_sheet.dart';
 import 'widgets/parish_search_bar.dart';
+import 'widgets/presidium_type_badge.dart';
 
 class PresidiumJoinPage extends StatefulWidget {
-  const PresidiumJoinPage({super.key});
+  const PresidiumJoinPage({super.key, this.juniorOnly = false});
+
+  /// 이미 어른 쁘레시디움에 가입한 단원은 소년소녀 쁘레시디움만 더 가입·생성할 수 있다.
+  final bool juniorOnly;
 
   @override
   State<PresidiumJoinPage> createState() => _PresidiumJoinPageState();
@@ -138,6 +142,7 @@ class _PresidiumJoinPageState extends State<PresidiumJoinPage> {
       context: context,
       parish: parish,
       curias: _curias,
+      juniorOnly: widget.juniorOnly,
       service: _service,
     );
     if (!mounted || joined == null) return;
@@ -176,7 +181,7 @@ class _PresidiumJoinPageState extends State<PresidiumJoinPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('쁘레시디움 가입'),
+        title: Text(widget.juniorOnly ? '소년소녀 쁘레시디움 가입' : '쁘레시디움 가입'),
         backgroundColor: Colors.transparent,
         foregroundColor: AppColors.title,
         elevation: 0,
@@ -283,7 +288,9 @@ class _PresidiumJoinPageState extends State<PresidiumJoinPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_presidiums.isEmpty) {
+    final presidiums =
+        widget.juniorOnly ? _presidiums.where((p) => p.isJunior).toList() : _presidiums;
+    if (presidiums.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -297,7 +304,7 @@ class _PresidiumJoinPageState extends State<PresidiumJoinPage> {
               ),
               const SizedBox(height: 16),
               Text(
-                '등록된 쁘레시디움이 없어요',
+                widget.juniorOnly ? '등록된 소년소녀 쁘레시디움이 없어요' : '등록된 쁘레시디움이 없어요',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: AppColors.title,
                       fontWeight: FontWeight.w600,
@@ -320,10 +327,10 @@ class _PresidiumJoinPageState extends State<PresidiumJoinPage> {
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 88),
-      itemCount: _presidiums.length,
+      itemCount: presidiums.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final item = _presidiums[index];
+        final item = presidiums[index];
         return _PresidiumListTile(
           item: item,
           onTap: () => _joinPresidium(item),
@@ -479,6 +486,10 @@ class _PresidiumListTile extends StatelessWidget {
                   ),
                 ),
               ),
+              if (item.isJunior) ...[
+                const SizedBox(width: 8),
+                PresidiumTypeBadge(label: item.typeLabel),
+              ],
             ],
           ),
         ),

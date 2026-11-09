@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/ads/ads_config.dart';
+import '../../../core/ads/native_ad_slot.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../activity_report/activity_service.dart';
@@ -159,6 +161,11 @@ class _PresidiumHomeState extends State<PresidiumHome> {
             child: _noticeContent(),
           ),
           const SizedBox(height: 14),
+          const NativeAdSlot(
+            placement: AdPlacement.home,
+            tabIndex: 0,
+            margin: EdgeInsets.only(bottom: 14),
+          ),
           _HomeCard(
             icon: Icons.volunteer_activism_outlined,
             title: '봉사 일정',

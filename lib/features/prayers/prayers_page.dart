@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/ads/ads_config.dart';
+import '../../core/ads/native_ad_slot.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_tab_header.dart';
 import 'data/prayers_data.dart';
@@ -81,6 +83,12 @@ class _PrayersPageState extends State<PrayersPage>
                 for (final tab in PrayersData.tabs) Tab(text: tab.title),
               ],
             ),
+          ),
+          // 분류 탭을 바꿔도 같은 광고를 유지하도록 탭 내용 밖에 둔다.
+          const NativeAdSlot(
+            placement: AdPlacement.prayer,
+            tabIndex: 3,
+            margin: EdgeInsets.fromLTRB(16, 12, 16, 4),
           ),
           Expanded(
             child: FutureBuilder<List<PrayerCategory>>(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_tab_header.dart';
 import '../../core/network/api_client.dart';
+import '../../core/presidium/current_presidium.dart';
 import '../../core/widgets/korean_date.dart';
 import 'activity_service.dart';
 import 'models/activity_report_entry.dart';
@@ -39,6 +40,13 @@ class _ActivityReportPageState extends State<ActivityReportPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _searchController.addListener(_onSearchChanged);
+    CurrentPresidium.id.addListener(_onPresidiumChanged);
+    _loadActivities();
+  }
+
+  /// 쁘레시디움 탭에서 다른 쁘레시디움을 고르면 그 쁘레시디움의 이번 주 보고로 다시 채운다.
+  void _onPresidiumChanged() {
+    _week = null;
     _loadActivities();
   }
 
@@ -116,6 +124,7 @@ class _ActivityReportPageState extends State<ActivityReportPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    CurrentPresidium.id.removeListener(_onPresidiumChanged);
     _searchController
       ..removeListener(_onSearchChanged)
       ..dispose();
@@ -319,16 +328,18 @@ class _ActivityReportPageState extends State<ActivityReportPage>
     final submitted = week?.isSubmitted ?? false;
     final dirty = _hasUnsavedChanges;
 
+    final presidiumName = CurrentPresidium.name;
     final String status;
     if (week == null) {
       status = _weekError ?? '이번 주 보고를 불러오는 중이에요.';
     } else {
+      final target = presidiumName == null ? '' : '$presidiumName에 보고\n';
       final period = '${week.weekStart.month}/${week.weekStart.day}(월)~'
           '${week.weekEnd.month}/${week.weekEnd.day}(일)';
       final updatedAt = week.updatedAt;
       status = updatedAt == null
-          ? '이번 주 $period · 아직 제출하지 않았어요'
-          : '이번 주 $period · ${koreanMonthDay(updatedAt)} '
+          ? '$target이번 주 $period · 아직 제출하지 않았어요'
+          : '$target이번 주 $period · ${koreanMonthDay(updatedAt)} '
               '${koreanTime(TimeOfDay.fromDateTime(updatedAt))} 제출됨'
               '${dirty ? '\n변경한 내용은 다시 제출해야 반영돼요' : ''}';
     }

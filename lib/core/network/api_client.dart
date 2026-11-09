@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import '../presidium/current_presidium.dart';
 import '../storage/token_storage.dart';
 
 /// 서버가 돌려준 오류. [message] 는 화면에 그대로 보여줄 수 있는 문구다.
@@ -39,9 +40,11 @@ class ApiClient {
     }
 
     final uri = Uri.parse('${AppConfig.baseUrl}$path');
+    final presidiumId = CurrentPresidium.id.value;
     final headers = {
       'Authorization': 'Bearer $token',
       if (body != null) 'Content-Type': 'application/json',
+      if (presidiumId != null) CurrentPresidium.header: '$presidiumId',
     };
 
     final http.Response response;

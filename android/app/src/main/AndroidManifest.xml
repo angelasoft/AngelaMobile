@@ -38,6 +38,10 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- AdMob 앱 ID (광고 단위 ID 는 lib/core/ads/ads_config.dart) -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-6000104681344689~3735285660" />
         <!-- FCM 푸시: 기본 채널(MainActivity 에서 생성)·상태 표시줄 아이콘·강조색 -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"

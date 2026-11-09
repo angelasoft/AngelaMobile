@@ -7,10 +7,12 @@ import '../models/presidium_info.dart';
 import '../presidium_service.dart';
 
 /// Pr 만들기 바텀시트. 생성 성공 시 만든 사람이 단장으로 가입된 [PresidiumInfo]를 반환한다.
+/// 이미 어른 쁘레시디움에 가입했으면 [juniorOnly] 로 소년소녀 쁘레시디움만 만들 수 있다.
 Future<PresidiumInfo?> showCreatePresidiumSheet({
   required BuildContext context,
   required ParishSummary parish,
   required List<CuriaItem> curias,
+  bool juniorOnly = false,
   PresidiumService service = const PresidiumService(),
 }) {
   return showModalBottomSheet<PresidiumInfo?>(
@@ -21,6 +23,7 @@ Future<PresidiumInfo?> showCreatePresidiumSheet({
     builder: (context) => _CreatePresidiumSheet(
       parish: parish,
       curias: curias,
+      juniorOnly: juniorOnly,
       service: service,
     ),
   );
@@ -30,11 +33,13 @@ class _CreatePresidiumSheet extends StatefulWidget {
   const _CreatePresidiumSheet({
     required this.parish,
     required this.curias,
+    required this.juniorOnly,
     required this.service,
   });
 
   final ParishSummary parish;
   final List<CuriaItem> curias;
+  final bool juniorOnly;
   final PresidiumService service;
 
   @override
@@ -48,6 +53,7 @@ class _CreatePresidiumSheetState extends State<_CreatePresidiumSheet> {
   int? _selectedCuriaId;
   bool _useNewCuria = false;
   bool _isSubmitting = false;
+  late bool _junior = widget.juniorOnly;
 
   @override
   void initState() {
@@ -89,6 +95,7 @@ class _CreatePresidiumSheetState extends State<_CreatePresidiumSheet> {
         curiaId: _useNewCuria ? null : _selectedCuriaId,
         curiaName: _useNewCuria ? _newCuriaController.text.trim() : null,
         name: name,
+        junior: _junior,
       );
       if (!mounted) return;
       Navigator.of(context).pop(joined);
@@ -140,7 +147,7 @@ class _CreatePresidiumSheetState extends State<_CreatePresidiumSheet> {
                   ),
                 ),
                 Text(
-                  'Pr 만들기',
+                  widget.juniorOnly ? '소년소녀 Pr 만들기' : 'Pr 만들기',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: AppColors.title,
@@ -154,6 +161,33 @@ class _CreatePresidiumSheetState extends State<_CreatePresidiumSheet> {
                       ),
                 ),
                 const SizedBox(height: 20),
+                if (!widget.juniorOnly) ...[
+                  Text(
+                    '구분',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: AppColors.title,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('어른')),
+                      ButtonSegment(value: true, label: Text('소년소녀')),
+                    ],
+                    selected: {_junior},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (s) => setState(() => _junior = s.first),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '어른 쁘레시디움은 한 곳만, 소년소녀 쁘레시디움은 여러 곳 가입할 수 있어요.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.subtitle,
+                        ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 if (widget.curias.isNotEmpty) ...[
                   Text(
                     'Cu',

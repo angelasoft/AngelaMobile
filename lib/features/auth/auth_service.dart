@@ -5,7 +5,9 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
 
+import '../../core/ads/app_open_ad_manager.dart';
 import '../../core/config/app_config.dart';
+import '../../core/presidium/current_presidium.dart';
 import '../../core/push/push_service.dart';
 import '../../core/storage/token_storage.dart';
 import 'models/auth_result.dart';
@@ -43,6 +45,7 @@ class AuthService {
 
     final String callback;
     try {
+      AppOpenAdManager.instance.suppressNextResume();
       callback = await FlutterWebAuth2.authenticate(
         url: authUrl,
         callbackUrlScheme: AppConfig.oauthCallbackScheme,
@@ -125,6 +128,7 @@ class AuthService {
   /// 로그인 토큰이 남아 있을 때 기기 푸시 등록을 먼저 해제한다.
   Future<void> signOut() async {
     await PushService.instance.unregisterDevice();
+    await CurrentPresidium.clear();
     await _tokenStorage.clear();
   }
 }

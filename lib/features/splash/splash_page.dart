@@ -1,13 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/app_routes.dart';
+import '../../core/ads/ads_config.dart';
+import '../../core/ads/ads_service.dart';
+import '../../core/ads/app_open_ad_manager.dart';
 import '../../core/bootstrap/app_bootstrap.dart';
 import '../../core/bootstrap/bootstrap_destination.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/angela_page_background.dart';
 import '../../core/widgets/brand_header.dart';
 
-/// 앱 최초 랜딩(스플래시) 화면. 터치 시 다음 화면으로 이동한다.
+/// 앱 최초 랜딩(스플래시) 화면. 초기화(광고 동의 포함)가 끝나면 조건에 따라 앱 오프닝 광고를 보여 준 뒤
+/// 스스로 다음 화면으로 넘어간다.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -19,10 +25,6 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   final _bootstrap = const AppBootstrap();
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
-
-  BootstrapDestination? _destination;
-  bool _isInitializing = true;
-  bool _isNavigating = false;
 
   @override
   void initState() {
@@ -36,7 +38,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       curve: Curves.easeOut,
     );
     _fadeController.forward();
-    _initialize();
+    // 동의 화면 등 광고 SDK 화면은 첫 화면이 그려진 뒤에 띄울 수 있다.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initialize());
   }
 
   @override
@@ -46,26 +49,21 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   }
 
   Future<void> _initialize() async {
+    final adDeadline = DateTime.now().add(AdsConfig.appOpenLoadTimeout);
+    unawaited(AdsService.instance.init());
+    final launch = AppOpenAdManager.instance.recordLaunch();
+    final minimumSplash = Future<void>.delayed(const Duration(milliseconds: 1200));
     BootstrapDestination destination;
     try {
       destination = await _bootstrap.run();
     } catch (_) {
       destination = BootstrapDestination.login;
     }
+    await Future.wait([launch, minimumSplash]);
+    await AppOpenAdManager.instance.showOnLaunch(deadline: adDeadline);
 
     if (!mounted) return;
-    setState(() {
-      _destination = destination;
-      _isInitializing = false;
-    });
-  }
-
-  void _onTap() {
-    if (_isInitializing || _isNavigating || _destination == null) return;
-
-    setState(() => _isNavigating = true);
-
-    final route = switch (_destination!) {
+    final route = switch (destination) {
       BootstrapDestination.home => AppRoutes.home,
       BootstrapDestination.login => AppRoutes.login,
       BootstrapDestination.onboarding => AppRoutes.onboarding,
@@ -77,58 +75,33 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _onTap,
-        child: AngelaPageBackground(
-          child: SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SizedBox(
-                width: double.infinity,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const Spacer(flex: 2),
-                    const BrandHeader(),
-                    const Spacer(flex: 3),
-                    _BottomHint(isInitializing: _isInitializing),
-                    const SizedBox(height: 48),
-                  ],
-                ),
+      body: AngelaPageBackground(
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SizedBox(
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Spacer(flex: 2),
+                  const BrandHeader(),
+                  const Spacer(flex: 3),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.accent.withValues(alpha: 0.75),
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                ],
               ),
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _BottomHint extends StatelessWidget {
-  const _BottomHint({required this.isInitializing});
-
-  final bool isInitializing;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isInitializing) {
-      return SizedBox(
-        width: 32,
-        height: 32,
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-          color: AppColors.accent.withValues(alpha: 0.75),
-        ),
-      );
-    }
-
-    return Text(
-      '화면을 터치하세요',
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.subtitle.withValues(alpha: 0.85),
-            letterSpacing: 0.3,
-          ),
     );
   }
 }

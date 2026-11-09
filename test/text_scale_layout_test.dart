@@ -82,6 +82,16 @@ void main() {
         body: ListView(
           children: [
             PresidiumHeader(presidium: presidium, unreadCount: 12),
+            PresidiumHeader(
+              presidium: PresidiumInfo(
+                id: 2,
+                name: PresidiumInfo.displayName('황금궁전', '사랑의 작은 꽃'),
+                type: 'JUNIOR',
+                typeLabel: '소년소녀',
+              ),
+              onTitleTap: () {},
+              unreadCount: 3,
+            ),
             const PresidiumHeader(),
             const AppTabHeader(title: '주요 기도문'),
             NoticeTile(notice: notice, showPreview: true),
