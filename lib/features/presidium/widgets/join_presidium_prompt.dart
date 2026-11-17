@@ -2,10 +2,35 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../my_presidiums.dart';
+import '../onboarding/presidium_guide_page.dart';
 
 /// 가입한 쁘레시디움이 없을 때 쁘레시디움·활동보고 탭에 보여 주는 안내와 가입 버튼.
-class JoinPresidiumPrompt extends StatelessWidget {
+/// 처음 한 번은 가입·만들기 가이드를 먼저 띄운다.
+class JoinPresidiumPrompt extends StatefulWidget {
   const JoinPresidiumPrompt({super.key});
+
+  @override
+  State<JoinPresidiumPrompt> createState() => _JoinPresidiumPromptState();
+}
+
+class _JoinPresidiumPromptState extends State<JoinPresidiumPrompt> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showGuideOnce());
+  }
+
+  /// 쁘레시디움·활동보고 탭이 IndexedStack 으로 함께 만들어지므로, 보이는 탭에서만 띄운다.
+  Future<void> _showGuideOnce() async {
+    if (!mounted || !TickerMode.valuesOf(context).enabled) return;
+    final goJoin = await PresidiumGuide.showOnce(context);
+    if (goJoin && mounted) await MyPresidiums.openJoin(context);
+  }
+
+  Future<void> _openGuide() async {
+    final goJoin = await PresidiumGuide.open(context);
+    if (goJoin && mounted) await MyPresidiums.openJoin(context);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +85,12 @@ class JoinPresidiumPrompt extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _openGuide,
+              icon: const Icon(Icons.help_outline, size: 18),
+              label: const Text('처음이신가요? 가입·만들기 방법 보기'),
             ),
           ],
         ),

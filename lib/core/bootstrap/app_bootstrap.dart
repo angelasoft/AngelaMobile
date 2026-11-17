@@ -1,3 +1,4 @@
+import '../auth/auth_session.dart';
 import 'bootstrap_destination.dart';
 
 /// 앱 시작 시 스플래시 동안 수행하는 초기화.
@@ -60,9 +61,11 @@ class AppBootstrap {
     return false;
   }
 
+  /// 갱신 토큰이 살아 있고 앱 회원가입까지 마쳤으면 자동 로그인.
   Future<AuthCheckResult> _checkAuth() async {
-    // TODO: Access/Refresh 토큰 저장소 + AngelaCore 검증
-    return AuthCheckResult.unauthenticated;
+    return await AuthSession.restore()
+        ? AuthCheckResult.authenticated
+        : AuthCheckResult.unauthenticated;
   }
 
   Future<void> _preloadEssentials() async {

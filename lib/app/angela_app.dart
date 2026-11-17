@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../core/text_scale/text_scale_controller.dart';
 import '../core/theme/app_colors.dart';
+import 'app_navigator.dart';
 import 'app_routes.dart';
 
 /// 흰색 바탕 테마. Material 3 기본값은 표면에 주 색상을 살짝 섞으므로 흰색으로 고정한다.
@@ -56,6 +57,8 @@ class AngelaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: AppNavigator.key,
+      scaffoldMessengerKey: AppNavigator.messengerKey,
       title: '레지오마리애',
       debugShowCheckedModeBanner: false,
       theme: _whiteTheme,

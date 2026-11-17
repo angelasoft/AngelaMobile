@@ -6,6 +6,7 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/ads/app_open_ad_manager.dart';
+import '../../core/auth/auth_session.dart';
 import '../../core/config/app_config.dart';
 import '../../core/presidium/current_presidium.dart';
 import '../../core/push/push_service.dart';
@@ -91,6 +92,11 @@ class AuthService {
     }
 
     await _tokenStorage.saveAccessToken(token);
+    final refreshToken = uri.queryParameters['refreshToken'];
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await _tokenStorage.saveRefreshToken(refreshToken);
+    }
+    AuthSession.markSignedIn();
 
     final registered = uri.queryParameters['registered'] == 'true';
     if (registered) {
@@ -107,7 +113,12 @@ class AuthService {
   }
 
   Future<void> register(SignUpRequest request) async {
-    final token = await _tokenStorage.readAccessToken();
+    final String? token;
+    try {
+      token = await AuthSession.accessToken();
+    } on SessionOfflineException catch (e) {
+      throw AuthException(e.toString());
+    }
     if (token == null) {
       throw const AuthException('인증 정보가 없습니다. 다시 로그인해 주세요.');
     }
@@ -126,9 +137,11 @@ class AuthService {
     }
   }
 
-  /// 로그인 토큰이 남아 있을 때 기기 푸시 등록을 먼저 해제한다.
+  /// 로그인 토큰이 남아 있을 때 기기 푸시 등록을 먼저 해제하고, 서버에서 갱신 토큰을 끊는다.
   Future<void> signOut() async {
+    AuthSession.markSignedOut();
     await PushService.instance.unregisterDevice();
+    await AuthSession.revokeOnServer();
     await CurrentPresidium.clear();
     MyPresidiums.reset();
     await _tokenStorage.clear();

@@ -13,7 +13,7 @@ class CurrentPresidium {
   /// 고른 쁘레시디움 번호. 아직 고르지 않았거나 가입하지 않았으면 null (서버가 어른 쁘레시디움을 쓴다).
   static final id = ValueNotifier<int?>(null);
 
-  /// 화면 안내용 이름 (예: 즐거움의샘Pr(황금궁전Cu)).
+  /// 화면 안내용 이름 (예: 즐거움의샘Pr).
   static String? name;
 
   static Future<void> init() async {

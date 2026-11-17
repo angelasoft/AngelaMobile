@@ -5,6 +5,7 @@ class PresidiumInfo {
   const PresidiumInfo({
     required this.id,
     required this.name,
+    this.prName,
     this.curiaName,
     this.parishName,
     this.type = 'ADULT',
@@ -17,8 +18,11 @@ class PresidiumInfo {
 
   final int id;
 
-  /// 헤더 표시용 (예: 즐거움의샘Pr(황금궁전Cu)).
+  /// 헤더 표시용 (예: 즐거움의샘Pr).
   final String name;
+
+  /// Pr 이름만 (예: 즐거움의샘). 해산 확인 입력에 쓴다.
+  final String? prName;
   final String? curiaName;
   final String? parishName;
 
@@ -44,14 +48,14 @@ class PresidiumInfo {
   String get myStatusLabel =>
       officerLabel == null ? gradeLabel : '$officerLabel · $gradeLabel';
 
-  /// Pr 이름 뒤에 소속 Cu 를 괄호로 붙인다.
-  static String displayName(String curiaName, String prName) =>
-      '${prName}Pr(${curiaName}Cu)';
+  /// 메뉴·헤더에는 Pr 이름만 보여 한 줄로 유지한다.
+  static String displayName(String prName) => '${prName}Pr';
 
   factory PresidiumInfo.fromItem(PresidiumItem item) {
     return PresidiumInfo(
       id: item.id,
-      name: displayName(item.curiaName, item.name),
+      name: displayName(item.name),
+      prName: item.name,
       curiaName: item.curiaName,
       parishName: item.parishName,
       type: item.type,
@@ -65,7 +69,8 @@ class PresidiumInfo {
     final pr = p['name'] as String;
     return PresidiumInfo(
       id: p['id'] as int,
-      name: displayName(curia, pr),
+      name: displayName(pr),
+      prName: pr,
       curiaName: curia,
       parishName: p['parishName'] as String?,
       type: p['type'] as String? ?? 'ADULT',

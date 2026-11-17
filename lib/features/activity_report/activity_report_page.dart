@@ -10,6 +10,7 @@ import '../../core/widgets/korean_date.dart';
 import '../presidium/governance/governance_service.dart';
 import '../presidium/my_presidiums.dart';
 import '../presidium/widgets/join_presidium_prompt.dart';
+import 'activity_favorites.dart';
 import 'activity_service.dart';
 import 'models/activity_report_entry.dart';
 import 'widgets/activity_report_row.dart';
@@ -24,9 +25,6 @@ class ActivityReportPage extends StatefulWidget {
 
 class _ActivityReportPageState extends State<ActivityReportPage>
     with WidgetsBindingObserver {
-  /// 즐겨찾기 저장 기능 전까지 처음 즐겨찾기로 표시할 활동.
-  static const _defaultFavoriteNames = {'묵주기도'};
-
   final _service = const ActivityService();
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
@@ -74,6 +72,7 @@ class _ActivityReportPageState extends State<ActivityReportPage>
       _loadError = null;
     });
     try {
+      await ActivityFavorites.load();
       final definitions = await _service.fetchActivities();
       final week = await _fetchWeek();
       if (!mounted) return;
@@ -88,8 +87,9 @@ class _ActivityReportPageState extends State<ActivityReportPage>
             count: weekChanged || old == null
                 ? week?.counts[definition.id] ?? 0
                 : old.count,
+            // 화면에서 이미 토글한 값은 유지하고, 처음 채울 때만 저장해 둔 즐겨찾기를 쓴다.
             isFavorite: old?.isFavorite ??
-                _defaultFavoriteNames.contains(definition.name),
+                ActivityFavorites.isFavorite(definition.id, definition.name),
           );
         }
         if (week != null) _week = week;
@@ -154,10 +154,14 @@ class _ActivityReportPageState extends State<ActivityReportPage>
     return list;
   }
 
-  void _toggleFavorite(int id) {
+  Future<void> _toggleFavorite(int id) async {
     setState(() {
       final entry = _entries[id]!;
       entry.isFavorite = !entry.isFavorite;
+    });
+    await ActivityFavorites.save({
+      for (final e in _entries.values)
+        if (e.isFavorite) e.id,
     });
   }
 

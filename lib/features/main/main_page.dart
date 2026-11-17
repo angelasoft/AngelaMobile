@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/ads/app_open_ad_manager.dart';
 import '../../core/ads/native_ad_slot.dart';
+import '../../core/auth/auth_session.dart';
 import '../../core/push/push_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../activity_report/activity_report_page.dart';
@@ -28,6 +29,7 @@ class _MainPageState extends State<MainPage> {
     _push.opened.addListener(_onPushOpened);
     _push.registerDevice();
     AppOpenAdManager.instance.watchAppResume();
+    AuthSession.watchAppResume();
     VisibleTab.index.value = _currentIndex;
     // 알림을 눌러 앱을 처음 열었으면 첫 화면이 그려진 뒤 알림함으로 간다.
     WidgetsBinding.instance.addPostFrameCallback((_) => _onPushOpened());

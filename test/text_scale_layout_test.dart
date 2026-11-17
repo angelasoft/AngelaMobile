@@ -40,7 +40,7 @@ void main() {
     content: '본당 주변 환경 정리 봉사입니다. 장갑과 집게는 사무실에서 받아 가세요.',
     createdByName: '박우석(유스티노)',
   );
-  final presidium = PresidiumInfo(id: 1, name: PresidiumInfo.displayName('황금궁전', '즐거움의샘'));
+  final presidium = PresidiumInfo(id: 1, name: PresidiumInfo.displayName('즐거움의샘'));
   final ledger = Ledger(
     exists: true,
     year: 2026,
@@ -85,7 +85,7 @@ void main() {
             PresidiumHeader(
               presidium: PresidiumInfo(
                 id: 2,
-                name: PresidiumInfo.displayName('황금궁전', '사랑의 작은 꽃'),
+                name: PresidiumInfo.displayName('사랑의 작은 꽃'),
                 type: 'JUNIOR',
                 typeLabel: '소년소녀',
               ),

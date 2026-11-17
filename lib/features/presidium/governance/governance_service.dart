@@ -72,6 +72,11 @@ class GovernanceService {
     return PresidiumMember.fromJson(json as Map<String, dynamic>);
   }
 
+  /// 혼자 남은 단원의 퇴단: 쁘레시디움과 관련 기록을 모두 지운다. [confirmName] 은 쁘레시디움 이름과 같아야 한다.
+  Future<void> dissolve(String confirmName) async {
+    await _client.post('$_base/dissolve', {'confirmName': confirmName});
+  }
+
   Future<MembershipRequestsOverview> fetchRequests() async {
     final json = await _client.get('$_base/requests');
     return MembershipRequestsOverview.fromJson(json as Map<String, dynamic>);

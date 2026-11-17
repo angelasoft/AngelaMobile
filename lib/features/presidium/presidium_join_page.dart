@@ -7,6 +7,7 @@ import '../../core/widgets/angela_page_background.dart';
 import 'models/curia_item.dart';
 import 'models/parish_summary.dart';
 import 'models/presidium_item.dart';
+import 'onboarding/presidium_guide_page.dart';
 import 'presidium_service.dart';
 import 'widgets/create_presidium_sheet.dart';
 import 'widgets/parish_search_bar.dart';
@@ -151,6 +152,21 @@ class _PresidiumJoinPageState extends State<PresidiumJoinPage> {
   }
 
   Future<void> _joinPresidium(PresidiumItem item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('이 쁘레시디움에 가입할까요?'),
+        content: Text(
+          '${item.curiaName} Cu > ${item.name} Pr\n\n'
+          '가입하면 행동단원으로 시작해요. 협조단원이라면 가입 뒤 설정에서 협조단원 신청을 해 주세요.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('가입')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     try {
       final joined = await _service.joinPresidium(item.id);
       if (!mounted) return;
@@ -185,6 +201,13 @@ class _PresidiumJoinPageState extends State<PresidiumJoinPage> {
         backgroundColor: Colors.transparent,
         foregroundColor: AppColors.title,
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: '가입·만들기 방법',
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => PresidiumGuide.open(context, showJoinButton: false),
+          ),
+        ],
       ),
       extendBodyBehindAppBar: true,
       body: AngelaPageBackground(
@@ -269,19 +292,7 @@ class _PresidiumJoinPageState extends State<PresidiumJoinPage> {
     }
 
     if (_selectedParish == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Text(
-            '소속 본당을 검색해 주세요.\n본당을 선택하면 쁘레시디움 목록이 표시됩니다.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.subtitle.withValues(alpha: 0.85),
-                  height: 1.5,
-                ),
-          ),
-        ),
-      );
+      return const _JoinSteps();
     }
 
     if (_isLoadingList) {
@@ -336,6 +347,81 @@ class _PresidiumJoinPageState extends State<PresidiumJoinPage> {
           onTap: () => _joinPresidium(item),
         );
       },
+    );
+  }
+}
+
+/// 본당을 고르기 전: 가입 순서 안내.
+class _JoinSteps extends StatelessWidget {
+  const _JoinSteps();
+
+  static const _steps = [
+    ('본당 검색', '위 검색창에 소속 본당 이름을 입력하고 내 본당을 눌러요.', Icons.church_outlined),
+    ('쁘레시디움 선택', '「Cu > Pr」 목록에서 내 쁘레시디움을 눌러 가입해요.', Icons.touch_app_outlined),
+    ('없으면 만들기', '목록에 없으면 「Pr 만들기」로 새로 만들어요. 만든 사람이 단장이 돼요.', Icons.add_circle_outline),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      children: [
+        Text(
+          '이렇게 가입해요',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: AppColors.title,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 10),
+        for (var i = 0; i < _steps.length; i++) ...[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: AppColors.accent,
+                  child: Text('${i + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(_steps[i].$3, size: 18, color: AppColors.accent),
+                          const SizedBox(width: 6),
+                          Text(
+                            _steps[i].$1,
+                            style: const TextStyle(color: AppColors.title, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(_steps[i].$2, style: const TextStyle(color: AppColors.subtitle, height: 1.45)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        Center(
+          child: TextButton.icon(
+            onPressed: () => PresidiumGuide.open(context, showJoinButton: false),
+            icon: const Icon(Icons.help_outline, size: 18),
+            label: const Text('그림으로 자세히 보기'),
+          ),
+        ),
+      ],
     );
   }
 }

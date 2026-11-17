@@ -95,12 +95,58 @@ class _PresidiumSettingsPageState extends State<PresidiumSettingsPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// 신청할 수 없는 이유. 신청할 수 있으면 null.
+  /// 등급 변경 신청을 할 수 없는 이유. 신청할 수 있으면 null.
   String? _blockReason() {
     if (_me.isOfficer) return '간부는 간부 이동으로 후임이 임명된 뒤 신청할 수 있어요.';
+    return _pendingReason();
+  }
+
+  String? _pendingReason() {
     final pending = _requests?.myPendingRequest;
-    if (pending != null) return '처리 중인 ${pending.typeLabel}이 있어요.';
-    return null;
+    return pending == null ? null : '처리 중인 ${pending.typeLabel}이 있어요.';
+  }
+
+  /// 혼자 남았으면 퇴단 = 쁘레시디움 해산.
+  bool get _isLastMember => !_isLoading && _members.length == 1;
+
+  /// 남은 단원이 모두 간부.
+  bool get _onlyOfficersLeft => _members.isNotEmpty && _members.every((m) => m.officerRole != null);
+
+  /// 퇴단 신청을 할 수 없는 이유. 간부만 남았으면 단장 외 간부도 신청할 수 있다 (단장이 승인).
+  String? _withdrawalBlockReason() {
+    if (_me.isOfficer) {
+      if (!_onlyOfficersLeft) return '간부는 간부 이동으로 후임이 임명된 뒤 신청할 수 있어요.';
+      if (_me.isPresident) {
+        return '다른 간부가 모두 퇴단한 뒤 퇴단할 수 있어요. 혼자 남으면 퇴단과 함께 쁘레시디움이 해산돼요.';
+      }
+    }
+    return _pendingReason();
+  }
+
+  String get _withdrawalDescription => _me.isOfficer
+      ? '간부만 남아 있어 단장이 승인하면 퇴단돼요.'
+      : '4간부 과반이 승인하면 퇴단돼요.';
+
+  Future<void> _dissolve() async {
+    final prName = _me.prName ?? _me.name;
+    final typed = await showDialog<String>(
+      context: context,
+      builder: (_) => _DissolveDialog(prName: prName),
+    );
+    if (typed == null) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      await _service.dissolve(typed);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$prName Pr이 해산되었습니다.')),
+      );
+      Navigator.of(context).pop();
+    } on ApiException catch (e) {
+      _showMessage(e.message);
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -118,6 +164,7 @@ class _PresidiumSettingsPageState extends State<PresidiumSettingsPage> {
 
     final pendingCount = _requests?.pendingApprovals.length ?? 0;
     final block = _blockReason();
+    final withdrawalBlock = _withdrawalBlockReason();
     final canSubmit = !_isLoading && !_isSubmitting && block == null;
 
     return Scaffold(
@@ -198,17 +245,28 @@ class _PresidiumSettingsPageState extends State<PresidiumSettingsPage> {
                   ),
                 ),
               _divider(),
-              ListTile(
-                enabled: canSubmit,
-                leading: const Icon(Icons.logout, color: Color(0xFFD9534F)),
-                title: const Text('퇴단 신청'),
-                subtitle: Text(block ?? '4간부 과반이 승인하면 퇴단돼요.'),
-                onTap: () => _submit(
-                  'WITHDRAWAL',
-                  '퇴단 신청',
-                  '4간부 과반이 승인하면 쁘레시디움에서 퇴단 처리돼요.',
+              if (_isLastMember)
+                ListTile(
+                  enabled: !_isSubmitting,
+                  leading: const Icon(Icons.delete_forever_outlined, color: Color(0xFFD9534F)),
+                  title: const Text('퇴단 (쁘레시디움 해산)'),
+                  subtitle: const Text('혼자 남아 있어 퇴단하면 쁘레시디움과 모든 기록이 삭제돼요.'),
+                  onTap: _dissolve,
+                )
+              else
+                ListTile(
+                  enabled: !_isLoading && !_isSubmitting && withdrawalBlock == null,
+                  leading: const Icon(Icons.logout, color: Color(0xFFD9534F)),
+                  title: const Text('퇴단 신청'),
+                  subtitle: Text(withdrawalBlock ?? _withdrawalDescription),
+                  onTap: () => _submit(
+                    'WITHDRAWAL',
+                    '퇴단 신청',
+                    _me.isOfficer
+                        ? '간부만 남아 있어 단장이 승인하면 쁘레시디움에서 퇴단 처리돼요.'
+                        : '4간부 과반이 승인하면 쁘레시디움에서 퇴단 처리돼요.',
+                  ),
                 ),
-              ),
             ]),
             const SizedBox(height: 16),
             Padding(
@@ -331,4 +389,76 @@ class _PresidiumSettingsPageState extends State<PresidiumSettingsPage> {
   }
 
   Widget _divider() => Divider(height: 1, indent: 16, color: AppColors.shadow.withValues(alpha: 0.08));
+}
+
+/// 해산 확인: 지워지는 내용을 보여 주고 Pr 이름을 입력해야 해산할 수 있다. 입력한 글자를 돌려준다.
+class _DissolveDialog extends StatefulWidget {
+  const _DissolveDialog({required this.prName});
+
+  /// Pr 이름만 (예: 즐거움의 샘).
+  final String prName;
+
+  @override
+  State<_DissolveDialog> createState() => _DissolveDialogState();
+}
+
+class _DissolveDialogState extends State<_DissolveDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// 띄어쓰기는 보지 않고, 끝에 "Pr" 을 붙여도 된다 (서버와 같은 기준).
+  static String _normalize(String value) {
+    final compact = value.replaceAll(RegExp(r'\s+'), '');
+    return compact.toLowerCase().endsWith('pr') ? compact.substring(0, compact.length - 2) : compact;
+  }
+
+  bool get _matches => _controller.text.trim().isNotEmpty && _normalize(_controller.text) == _normalize(widget.prName);
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('쁘레시디움을 해산할까요?'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '혼자 남은 단원이 퇴단하면 쁘레시디움이 없어지고 아래 기록이 모두 삭제돼요. 되돌릴 수 없어요.\n\n'
+              '· 공지사항, 봉사 일정\n'
+              '· 활동보고, 회계 장부\n'
+              '· 출석부, 휴회 주, 쁘레시디움 정보\n'
+              '· 간부 투표, 신청 내역과 관련 알림',
+              style: TextStyle(height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '확인을 위해 Pr 이름 「${widget.prName}」을 입력해 주세요.',
+              style: const TextStyle(color: AppColors.subtitle, fontSize: 13),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: InputDecoration(hintText: widget.prName),
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소')),
+        FilledButton(
+          onPressed: _matches ? () => Navigator.pop(context, _controller.text.trim()) : null,
+          style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD9534F)),
+          child: const Text('해산'),
+        ),
+      ],
+    );
+  }
 }

@@ -41,7 +41,7 @@ abstract final class AdsConfig {
   /// (광고 요청 시 logcat/Xcode 로그에 "setTestDeviceIds" 안내와 함께 출력되는 값)
   static const testDeviceIds = <String>[];
 
-  /// 이 플랫폼·빌드에서 광고를 쓸 수 있는지. iOS 는 AdMob 에 아직 등록하지 않아 출시 빌드에서는 끈다.
+  /// 이 플랫폼·빌드에서 광고를 쓸 수 있는지.
   static bool get supported =>
       adsEnabled && !kIsWeb && (Platform.isAndroid || Platform.isIOS) && _units != null;
 
@@ -66,7 +66,7 @@ abstract final class AdsConfig {
     if (!kReleaseMode) {
       return Platform.isIOS ? _iosTest : _androidTest;
     }
-    return Platform.isAndroid ? _androidRelease : null;
+    return Platform.isIOS ? _iosRelease : _androidRelease;
   }
 
   static const _androidRelease = _AdUnits(
@@ -75,6 +75,14 @@ abstract final class AdsConfig {
     prayerNative: 'ca-app-pub-6000104681344689/7977783006',
     activityNative: 'ca-app-pub-6000104681344689/1174369808',
     rosaryNative: 'ca-app-pub-6000104681344689/8594353961',
+  );
+
+  static const _iosRelease = _AdUnits(
+    appOpen: 'ca-app-pub-6000104681344689/7385100104',
+    homeNative: 'ca-app-pub-6000104681344689/1174255835',
+    prayerNative: 'ca-app-pub-6000104681344689/6257072458',
+    activityNative: 'ca-app-pub-6000104681344689/9979473854',
+    rosaryNative: 'ca-app-pub-6000104681344689/2052223234',
   );
 
   static const _androidTest = _AdUnits(

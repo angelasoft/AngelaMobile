@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/auth/auth_session.dart';
 import '../../core/config/app_config.dart';
-import '../../core/storage/token_storage.dart';
 import 'models/curia_item.dart';
 import 'models/parish_summary.dart';
 import 'models/presidium_info.dart';
@@ -19,21 +19,39 @@ class PresidiumServiceException implements Exception {
 
 /// 본당·쁘레시디움 조회/생성/가입 API.
 class PresidiumService {
-  const PresidiumService({TokenStorage tokenStorage = const TokenStorage()})
-      : _tokenStorage = tokenStorage;
+  const PresidiumService();
 
-  final TokenStorage _tokenStorage;
+  static const _expiredMessage = '로그인이 만료되었습니다. 다시 로그인해 주세요.';
+  static const _offlineMessage = '서버에 연결하지 못했습니다. 네트워크 연결을 확인해 주세요.';
 
-  Future<Map<String, String>> _authHeaders() async {
-    final token = await _tokenStorage.readAccessToken();
-    if (token == null) {
-      throw const PresidiumServiceException('로그인이 필요합니다. 다시 로그인해 주세요.');
+  /// 로그인이 필요한 요청. 접근 토큰이 만료됐거나 401 이면 갱신해 한 번 더 보내고,
+  /// 다시 로그인해야 하면 (로그인 화면으로 보낸 뒤) 예외를 던진다.
+  Future<http.Response> _authorized(Future<http.Response> Function(Map<String, String> headers) send) async {
+    var response = await send(_headers(await _token(AuthSession.accessToken)));
+    if (response.statusCode == 401) {
+      response = await send(_headers(await _token(AuthSession.renewAfterUnauthorized)));
+      if (response.statusCode == 401) {
+        await AuthSession.expire();
+        throw const PresidiumServiceException(_expiredMessage);
+      }
     }
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
+    return response;
   }
+
+  static Future<String> _token(Future<String?> Function() obtain) async {
+    try {
+      final token = await obtain();
+      if (token == null) throw const PresidiumServiceException(_expiredMessage);
+      return token;
+    } on SessionOfflineException {
+      throw const PresidiumServiceException(_offlineMessage);
+    }
+  }
+
+  static Map<String, String> _headers(String token) => {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
 
   Future<List<ParishSummary>> searchParishes(String query) async {
     final q = query.trim();
@@ -81,16 +99,11 @@ class PresidiumService {
   }
 
   /// 가입한 쁘레시디움 전체 (어른 쁘레시디움이 먼저). 미가입이면 빈 목록.
+  /// 로그인이 만료됐으면 빈 목록(미가입)으로 착각하지 않게 예외를 던지고 로그인 화면으로 보낸다.
   Future<List<PresidiumInfo>> fetchMyPresidiums() async {
-    final token = await _tokenStorage.readAccessToken();
-    if (token == null) return const [];
-
-    final response = await http.get(
-      Uri.parse('${AppConfig.baseUrl}/app/presidiums/mine'),
-      headers: {'Authorization': 'Bearer $token'},
+    final response = await _authorized(
+      (headers) => http.get(Uri.parse('${AppConfig.baseUrl}/app/presidiums/mine'), headers: headers),
     );
-
-    if (response.statusCode == 401) return const [];
     if (response.statusCode != 200) {
       throw const PresidiumServiceException('가입 정보를 불러오지 못했습니다.');
     }
@@ -102,11 +115,9 @@ class PresidiumService {
   }
 
   Future<PresidiumInfo> joinPresidium(int presidiumId) async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.baseUrl}/app/presidiums/$presidiumId/join'),
-      headers: await _authHeaders(),
+    final response = await _authorized(
+      (headers) => http.post(Uri.parse('${AppConfig.baseUrl}/app/presidiums/$presidiumId/join'), headers: headers),
     );
-
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body) as Map<String, dynamic>;
       return PresidiumInfo.fromMyPresidiumJson(json);
@@ -138,12 +149,13 @@ class PresidiumService {
       body['curiaName'] = curiaName.trim();
     }
 
-    final response = await http.post(
-      Uri.parse('${AppConfig.baseUrl}/app/presidiums'),
-      headers: await _authHeaders(),
-      body: jsonEncode(body),
+    final response = await _authorized(
+      (headers) => http.post(
+        Uri.parse('${AppConfig.baseUrl}/app/presidiums'),
+        headers: headers,
+        body: jsonEncode(body),
+      ),
     );
-
     if (response.statusCode == 201) {
       return PresidiumInfo.fromMyPresidiumJson(
         jsonDecode(response.body) as Map<String, dynamic>,
